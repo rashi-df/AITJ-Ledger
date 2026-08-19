@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+coverage
+playwright-report
+test-results
+.code-review-graph
+pnpm-lock.yaml
+
+# Documentation and agent specs are hand-authored content, not app
+# source. Excluded from formatting so `pnpm format` stays scoped to
+# code (AITJ-M0-01). Revisit if a future ticket wants Prettier on Markdown.
+docs/
+.claude/
+CLAUDE.md
+.mcp.json
