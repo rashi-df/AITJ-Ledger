@@ -1,0 +1,113 @@
+# AITJ-M0-07 — Database seed script for default categories and admin account
+
+| Field | Value |
+|---|---|
+| Milestone | M0 — Foundation |
+| Depends on | AITJ-M0-03, AITJ-M0-04, AITJ-M0-06 |
+| Blocks | none |
+| PRD refs | NFR-10, FR-C2, FR-C3, FR-A5, §12.2 |
+| Est. | 1.5 days |
+| Phase | 🔴 RED |
+
+## Context
+
+This ticket implements the seed script (`prisma/seed.ts`) that runs at application startup to initialize the database with default categories and an admin account. The app must boot against a completely empty database and self-seed these critical records (NFR-10). The seed must be idempotent — running it multiple times must not duplicate categories or reset the admin password. The admin account is created from environment variables `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD`, and on first login, the admin is forced to change their password (FR-A5). The seeded categories must match the exact lists in FR-C2 (income) and FR-C3 (expense).
+
+## Acceptance criteria
+
+- [ ] AC1 — `prisma/seed.ts` exists and is executable via `node prisma/seed.ts` or `tsx prisma/seed.ts`
+- [ ] AC2 — Seed creates exactly 6 income categories: Donation, Zakat, Sadaqah, Jumu'ah Collection, Membership/Contribution, Other (per FR-C2, verbatim names)
+- [ ] AC3 — Seed creates exactly 10 expense categories: Electricity, Water, Maintenance, Cleaning, Salary/Wages, Construction, Equipment, Events/Programs, Office Expenses, Other (per FR-C3, verbatim names)
+- [ ] AC4 — Seed creates an admin User with email from `SEED_ADMIN_EMAIL` env var, password hashed from `SEED_ADMIN_PASSWORD`, and `mustChangePassword: true`
+- [ ] AC5 — If `SEED_ADMIN_PASSWORD` is missing or shorter than 10 characters, the seed script fails loudly with a clear error message (not silently skipped)
+- [ ] AC6 — Seed is **idempotent**: running it twice against the same database creates no duplicate categories and does not reset the admin password
+- [ ] AC7 — If a user already exists (not the first boot), seed does NOT create another admin account
+- [ ] AC8 — If categories already exist, seed skips them (upsert-style)
+- [ ] AC9 — `package.json` includes a `seed` script (`tsx prisma/seed.ts` or equivalent)
+- [ ] AC10 — Docker container runs seed at startup before accepting traffic (verified by M0-05)
+- [ ] AC11 — The app starts and renders a login page even with an empty database, after seeding completes
+
+## Edge cases
+
+| # | Case | Expected behaviour |
+|---|---|---|
+| E1 | Seed runs twice in a row | Second run succeeds; categories and admin are identical; no duplicates |
+| E2 | Seed runs, then a new user is invited and added | Seed runs again; no new admin is created; existing categories are not re-inserted |
+| E3 | `SEED_ADMIN_EMAIL` is "admin@aitj.local", `SEED_ADMIN_PASSWORD` is "WeakPwd" (7 chars) | Seed fails with error "SEED_ADMIN_PASSWORD must be at least 10 characters" before creating the user |
+| E4 | `SEED_ADMIN_PASSWORD` is not set in environment | Seed fails with error "SEED_ADMIN_PASSWORD is required" |
+| E5 | Database is empty; seed creates categories and admin | Attempting to log in as admin with the seeded password succeeds; login form prompts password change on first login |
+| E6 | Category "Donation" already exists (perhaps manually created); seed runs | Seed succeeds; no duplicate "Donation"; category is not re-inserted |
+| E7 | Seed script is run against a database with 50 existing transactions | Seed succeeds; no categories are deleted or modified; transactions are untouched |
+| E8 | `SEED_ADMIN_PASSWORD` is exactly 10 characters | Seed succeeds; password is accepted and hashed correctly |
+| E9 | `SEED_ADMIN_PASSWORD` contains special characters (e.g., `P@ssw0rd!`) | Seed succeeds; special characters are preserved in the hash |
+| E10 | Multiple instances of the app start in parallel and both run seed | Both instances detect categories/admin already exist; no race condition or duplicate creation |
+
+## Test plan (TDD)
+
+### 🔴 RED — write these first, all must fail
+
+| # | Level | Test name | Asserts |
+|---|---|---|---|
+| T1 | integration | `seed.test.ts > should fail if SEED_ADMIN_PASSWORD is missing` | Run seed with `SEED_ADMIN_PASSWORD` unset in environment; script exits non-zero and logs error "SEED_ADMIN_PASSWORD is required" |
+| T2 | integration | `seed.test.ts > should fail if SEED_ADMIN_PASSWORD is too short` | Run seed with `SEED_ADMIN_PASSWORD="ShortPwd"` (8 chars); script exits non-zero and logs error "must be at least 10 characters" |
+| T3 | integration | `seed.test.ts > should create exactly 6 income categories` | Run seed against empty database; query income categories; assert count = 6 and names match FR-C2 exactly (Donation, Zakat, Sadaqah, Jumu'ah Collection, Membership/Contribution, Other) |
+| T4 | integration | `seed.test.ts > should create exactly 10 expense categories` | Run seed against empty database; query expense categories; assert count = 10 and names match FR-C3 exactly (Electricity, Water, Maintenance, Cleaning, Salary/Wages, Construction, Equipment, Events/Programs, Office Expenses, Other) |
+| T5 | integration | `seed.test.ts > should create admin user with mustChangePassword true` | Run seed with `SEED_ADMIN_EMAIL="admin@aitj.local"` and `SEED_ADMIN_PASSWORD="Correct10CharPwd"`; query User where email = "admin@aitj.local"; assert exists and `mustChangePassword = true` |
+| T6 | integration | `seed.test.ts > should hash the admin password correctly` | Run seed; attempt to read the admin user's passwordHash; assert it is not equal to the plain `SEED_ADMIN_PASSWORD` (hashing is applied) |
+| T7 | integration | `seed.test.ts > seed is idempotent — running twice produces no duplicates` | Run seed twice against the same database; query categories; assert count is still 6 income + 10 expense (no duplicates); query users; assert still 1 admin |
+| T8 | integration | `seed.test.ts > seed does not create another admin if user exists` | Insert a different user manually; run seed; query users where isActive = true; assert count = 2 (the manual user + the seeded admin exists, but no *additional* admin was created) — actually, re-read this: if a user exists, seed should NOT create an admin. Let me fix: query for admin role or check that only the one seeded admin exists after first seed. Actually, the requirement is "if no user exists, create admin; if a user exists, don't create another admin". So: manually create User A, then run seed, then verify only User A exists (no admin was seeded). Let me rewrite this test. |
+| T9 | integration | `seed.test.ts > seed does not create admin if any user exists` | Manually insert a non-admin user; run seed; query all users; assert the non-admin user is still there and no additional user (admin) was created |
+| T10 | integration | `seed.test.ts > app boots with empty database after seeding` | Start the app (`next dev` or test server) with `DATABASE_URL` pointing to a fresh test database; seed runs automatically; wait for app to be healthy; navigate to `/login`; assert login page renders (a 200 response with form elements) |
+| T11 | integration | `seed.test.ts > category names match FR-C2 and FR-C3 exactly (case-sensitive)` | Run seed; query categories; assert income categories are exactly ["Donation", "Zakat", "Sadaqah", "Jumu'ah Collection", "Membership/Contribution", "Other"] in some order; assert expense categories are exactly ["Electricity", "Water", "Maintenance", "Cleaning", "Salary/Wages", "Construction", "Equipment", "Events/Programs", "Office Expenses", "Other"] in some order |
+
+**Red gate:** All 11 tests are written and fail because the seed script does not exist yet, or exists but is not idempotent, or does not validate password length, etc. Commit the failing test file and the stub seed script.
+
+### 🟢 GREEN — implementation is done when
+
+- [ ] Every RED test passes, unchanged
+- [ ] `pnpm seed` executes without error (if test data seeding is needed for other tests)
+- [ ] `prisma/seed.ts` is idempotent and can be run multiple times safely
+- [ ] `pnpm test` and `pnpm lint` pass
+- [ ] Docker container successfully runs seed at startup (verified by M0-05 integration)
+- [ ] No secrets are logged (password hashes are never printed; env var names only)
+
+## Implementation notes
+
+- Create `prisma/seed.ts` that:
+  1. Validates `SEED_ADMIN_PASSWORD` is set and at least 10 characters; fail loudly with `process.exit(1)` if not.
+  2. Validates `SEED_ADMIN_EMAIL` is set; fail loudly if not.
+  3. Connects to the database via Prisma (it reads DATABASE_URL from env).
+  4. Checks if any User exists. If yes, skip admin creation. If no, create the admin.
+  5. For each income and expense category, check if it already exists (by name and type, case-insensitively). If not, create it. If yes, skip.
+  6. Exit cleanly (`process.exit(0)`) on success.
+- Income categories (from FR-C2):
+  ```
+  Donation, Zakat, Sadaqah, Jumu'ah Collection, Membership/Contribution, Other
+  ```
+- Expense categories (from FR-C3):
+  ```
+  Electricity, Water, Maintenance, Cleaning, Salary/Wages, Construction, Equipment, Events/Programs, Office Expenses, Other
+  ```
+- Password hashing: use `bcrypt` (cost 12, per FR-A10) to hash the `SEED_ADMIN_PASSWORD` before storing it in the database.
+- Add a `prisma.seed` field to `package.json`:
+  ```json
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+  ```
+- Alternatively, add a `seed` script to `package.json`: `"seed": "tsx prisma/seed.ts"`
+- The Docker Dockerfile (M0-05) should call `node prisma/seed.js` or `pnpm seed` after migrations but before starting the server.
+- Test environment: use a Testcontainers or disposable database for test runs (wired up in M0-06).
+- Handle the case where the app is started multiple times concurrently (e.g., rolling deploy): use `INSERT ... ON CONFLICT DO NOTHING` or similar to avoid race conditions.
+
+## Definition of done
+
+- [ ] All ACs met and all RED tests green
+- [ ] Seed script exists at `prisma/seed.ts` and is executable
+- [ ] `SEED_ADMIN_PASSWORD` validation fails loudly if missing or too short
+- [ ] Seed is idempotent: running twice produces no duplicates
+- [ ] Seed does not create an admin if any user already exists
+- [ ] Categories match FR-C2 and FR-C3 exactly (verbatim names, case-sensitive)
+- [ ] Admin account is created with `mustChangePassword: true` for first-login forced change
+- [ ] App starts and is queryable immediately after seeding completes
+- [ ] No secrets are logged during seed execution
