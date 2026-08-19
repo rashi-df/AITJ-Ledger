@@ -53,7 +53,7 @@ docker compose exec app pnpm vitest run path/to/file.test.ts
 docker compose exec app pnpm playwright test --grep "delete transaction"
 ```
 
-> The Makefile and compose files are created by `AITJ-M0-01` and `AITJ-M0-05`. Until those are GREEN, these targets do not exist yet.
+> The Makefile and compose files are both created by `AITJ-M0-05`. Until it is GREEN these targets do not exist, so `AITJ-M0-02` through `AITJ-M0-04` necessarily run their tooling on the host.
 
 ## Architecture Rules (Hard Rules — Review Rejects on Violation)
 

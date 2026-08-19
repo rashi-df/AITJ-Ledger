@@ -1,8 +1,9 @@
 {
   "name": "aitj-ledger",
   "version": "0.1.0",
+  "packageManager": "pnpm@9.15.9",
   "private": true,
-  "description": "AITJ Ledger — private masjid income & expense register",
+  "description": "AITJ Ledger \u2014 private masjid income & expense register",
   "engines": {
     "node": ">=22"
   },

@@ -1,4 +1,4 @@
-# AITJ-M0-05 — Docker compose for app and PostgreSQL 16
+# AITJ-M0-05 — Docker compose for app and PostgreSQL 16, plus the Makefile task runner
 
 | Field | Value |
 |---|---|
@@ -12,6 +12,8 @@
 ## Context
 
 This ticket creates `docker-compose.yml` with two services: the Next.js app and a PostgreSQL 16 database. Both services must be healthy and communicable. Migrations and seeding run at app startup. Environment variables (§12.2) are passed via `.env.local` (development) or injected at deployment. No secrets are hardcoded (NFR-5).
+
+This ticket also delivers the root `Makefile` — the single documented entry point for every command in this project. `CLAUDE.md` states that node, pnpm, prisma, vitest and playwright are never run on the host: the Makefile is what makes that true, by wrapping each target in `docker compose exec app`. Until this ticket is GREEN those targets do not exist, so tickets AITJ-M0-02 through AITJ-M0-04 necessarily run their tooling on the host.
 
 ## Acceptance criteria
 
@@ -28,6 +30,12 @@ This ticket creates `docker-compose.yml` with two services: the Next.js app and 
 - [ ] AC11 — A `docker-compose.dev.yml` override file provides hot reload (e.g., `next dev` instead of `next start`) and exposes the database port for local debugging
 - [ ] AC12 — `.dockerignore` excludes node_modules, .next, .git, etc., to reduce image size
 - [ ] AC13 — All secrets are sourced from environment variables; no credentials hardcoded in Dockerfile or config
+- [ ] AC14 — A `Makefile` exists at the repo root and is the documented entry point for all commands
+- [ ] AC15 — The Makefile defines every target named in `CLAUDE.md`: `up`, `down`, `shell`, `migrate`, `fresh`, `seed`, `test`, `test-unit`, `test-e2e`, `typecheck`, `lint`, `ci`, `psql`, `logs`, `ps`
+- [ ] AC16 — Every target that runs project tooling (node, pnpm, prisma, vitest, playwright) executes inside the `app` container via `docker compose exec app`, never on the host
+- [ ] AC17 — `make ci` runs `typecheck`, `lint` and `test` in that order and fails fast on the first non-zero exit
+- [ ] AC18 — `make psql` opens a psql shell against database `aitj`; `make fresh` drops, migrates and seeds in that order
+- [ ] AC19 — All targets are declared `.PHONY`; `make` with no argument prints usage rather than running anything destructive
 
 ## Edge cases
 
@@ -40,6 +48,8 @@ This ticket creates `docker-compose.yml` with two services: the Next.js app and 
 | E5 | Seed script encounters an error | Startup fails with clear error logging; seed is not silently ignored |
 | E6 | Docker compose is run on WSL2 or Docker Desktop with volume mounting | Named volume persists data across container restarts |
 | E7 | `docker-compose down -v` is run | Named volume is deleted; next startup initializes a fresh database |
+| E8 | A `make` target needing the container is run while the stack is down | Target fails with a clear message telling the user to run `make up` first, not an opaque docker error |
+| E9 | `make fresh` is run against a database holding data | Data is dropped and rebuilt from migrations plus seed; the destructive step is not silent |
 
 ## Test plan (TDD)
 
@@ -54,8 +64,12 @@ This ticket creates `docker-compose.yml` with two services: the Next.js app and 
 | T5 | integration | `docker > services should start and be healthy` | Running `docker compose up -d && docker compose ps` shows both services healthy (status "healthy" or similar); then `docker compose down` cleans up |
 | T6 | integration | `docker > database should accept connections` | After `docker compose up -d`, connecting to the database via `psql -h localhost -U postgres` succeeds; then `docker compose down` |
 | T7 | integration | `docker > app healthcheck should pass` | After `docker compose up -d`, polling `curl http://localhost:3000/api/health` eventually succeeds; then `docker compose down` |
+| T8 | unit | `make > Makefile should exist` | File `Makefile` exists in the repo root; before work, it does not |
+| T9 | unit | `make > Makefile defines every documented target` | Parsing the Makefile yields all 15 targets from AC15; each is also listed in `.PHONY` |
+| T10 | unit | `make > tooling targets run inside the container` | Every target invoking node/pnpm/prisma/vitest/playwright contains `docker compose exec app`; no bare host invocation |
+| T11 | integration | `make > make ci runs typecheck, lint and test in order` | With the stack up, `make ci` invokes the three in order and returns non-zero if any fails |
 
-**Red gate:** Tests T1–T4 check for file existence and basic syntax before any implementation. T5–T7 are integration-level and will be run during the GREEN phase. Commit the test scripts and the empty Dockerfile/compose stub.
+**Red gate:** Tests T1–T4 and T8–T10 check for file existence and basic syntax before any implementation. T5–T7 and T11 are integration-level and will be run during the GREEN phase. Commit the test scripts and the empty Dockerfile/compose stub.
 
 ### 🟢 GREEN — implementation is done when
 
@@ -66,7 +80,8 @@ This ticket creates `docker-compose.yml` with two services: the Next.js app and 
 - [ ] `docker exec [app-container] curl http://localhost:3000/api/health` returns a 2xx status
 - [ ] `docker compose down -v` cleans up all resources (containers, volumes, networks)
 - [ ] `pnpm tsc --noEmit` and `pnpm lint` pass
-- [ ] No secrets appear in the Dockerfile or compose file
+- [ ] `make up`, `make ps`, `make typecheck`, `make lint` and `make ci` all succeed against the running stack
+- [ ] No secrets appear in the Dockerfile, compose file or Makefile
 
 ## Implementation notes
 
@@ -86,6 +101,13 @@ This ticket creates `docker-compose.yml` with two services: the Next.js app and 
 - Create an `.env.local.example` file documenting required variables (for reference; not committed to git in some repos)
 - In the Dockerfile, run `prisma migrate deploy` and the seed script before starting the app server
 - Do not hardcode `DATABASE_URL`, `AUTH_SECRET`, or any secret in the Dockerfile; source them from environment variables passed at runtime
+- Create the root `Makefile` mirroring the command table in `CLAUDE.md` exactly — that table is the contract, so target names must not drift from it:
+  - Stack: `up` (`docker compose up -d`), `down`, `ps`, `logs`, `shell` (`docker compose exec app bash`)
+  - Database: `migrate` (`prisma migrate deploy`), `seed`, `fresh` (drop → migrate → seed), `psql` (`docker compose exec db psql -U postgres -d aitj`)
+  - Quality: `typecheck` (`tsc --noEmit`), `lint` (ESLint + Prettier check), `test`, `test-unit`, `test-e2e`, `ci` (typecheck → lint → test)
+  - Every tooling target wraps its command in `docker compose exec app`; the Makefile is the reason the no-host-tooling rule holds
+  - Declare `.PHONY` for all targets and make the default goal a help listing, so a bare `make` never mutates state
+  - `make fresh` is destructive — echo what it is about to do before doing it
 
 ## Definition of done
 
@@ -95,4 +117,6 @@ This ticket creates `docker-compose.yml` with two services: the Next.js app and 
 - [ ] Seeding runs automatically at startup (categories and admin account are created)
 - [ ] Both services are healthy and communicate correctly
 - [ ] `docker compose down -v` cleanly removes all resources
-- [ ] No secrets hardcoded in Dockerfile or compose file
+- [ ] `Makefile` exists and every target documented in `CLAUDE.md` works against the running stack
+- [ ] No `make` target runs project tooling on the host
+- [ ] No secrets hardcoded in Dockerfile, compose file or Makefile

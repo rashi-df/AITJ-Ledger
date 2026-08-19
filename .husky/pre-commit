@@ -1,1 +1,13 @@
-pnpm lint && pnpm tsc --noEmit
+# pnpm is not guaranteed to be on PATH — git hooks run with a minimal
+# environment, and on this project it is installed via corepack rather
+# than globally. Resolve it explicitly instead of assuming a bare `pnpm`.
+if command -v pnpm >/dev/null 2>&1; then
+  PNPM="pnpm"
+elif command -v corepack >/dev/null 2>&1; then
+  PNPM="corepack pnpm"
+else
+  echo "pre-commit: neither pnpm nor corepack found on PATH" >&2
+  exit 1
+fi
+
+$PNPM lint && $PNPM tsc --noEmit

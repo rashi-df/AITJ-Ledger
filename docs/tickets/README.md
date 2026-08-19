@@ -22,11 +22,11 @@ M1–M3 together form the vertical slice worth demoing to the client early (§14
 
 | Ticket | Title | PRD refs | Phase |
 |---|---|---|---|
-| [AITJ-M0-01](AITJ-M0-01-init-repo-tooling.md) | Initialise repository, TypeScript, ESLint, Prettier and Husky | §8.1, NFR-5 | 🔴 RED |
+| [AITJ-M0-01](AITJ-M0-01-init-repo-tooling.md) | Initialise repository, TypeScript, ESLint, Prettier and Husky | §8.1, NFR-5 | 🟢 GREEN |
 | [AITJ-M0-02](AITJ-M0-02-scaffold-next-tailwind-shadcn.md) | Scaffold Next.js 15 App Router with Tailwind and shadcn/ui | §8.1, §8.2, NFR-5 | 🔴 RED |
 | [AITJ-M0-03](AITJ-M0-03-define-prisma-schema.md) | Define Prisma schema and initial migration | §6, A5, A6 | 🔴 RED |
 | [AITJ-M0-04](AITJ-M0-04-add-raw-migration-constraints.md) | Add raw migration for case-insensitive category uniqueness and type check constraint | §6.1, FR-C6 | 🔴 RED |
-| [AITJ-M0-05](AITJ-M0-05-docker-compose-setup.md) | Docker compose for app and PostgreSQL 16 | §12.1, §12.2, NFR-5 | 🔴 RED |
+| [AITJ-M0-05](AITJ-M0-05-docker-compose-setup.md) | Docker compose for app and PostgreSQL 16, plus the Makefile task runner | §12.1, §12.2, NFR-5 | 🔴 RED |
 | [AITJ-M0-06](AITJ-M0-06-test-harness-setup.md) | Vitest, Testcontainers and Playwright test harness | §13, NFR-1 | 🔴 RED |
 | [AITJ-M0-07](AITJ-M0-07-database-seed-script.md) | Database seed script for default categories and admin account | NFR-10, FR-C2, FR-C3, FR-A5, §12.2 | 🔴 RED |
 
