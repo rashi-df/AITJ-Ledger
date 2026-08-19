@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Host lane. The Docker lane — `make ci` inside the app container, plus a
+  # Postgres service for the Testcontainers integration tests — is added by
+  # AITJ-M0-05 and AITJ-M0-06, which is when a compose file and a real test
+  # suite first exist. Until then there is nothing to run in a container.
+  quality:
+    name: typecheck · lint · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      TZ: Asia/Kolkata
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # No `version:` here on purpose — the action reads the packageManager
+      # field in package.json, so CI cannot drift from the pinned 9.15.9.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build
+        run: pnpm build
