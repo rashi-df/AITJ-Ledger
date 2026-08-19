@@ -15,14 +15,14 @@ This ticket establishes the repository and development tooling foundation. A wor
 
 ## Acceptance criteria
 
-- [ ] AC1 — Repository initialised with pnpm workspace / monorepo structure (if applicable) or a clean Next.js root
-- [ ] AC2 — TypeScript configured with `strict: true` in tsconfig.json
-- [ ] AC3 — ESLint configured and runnable via `pnpm lint`
-- [ ] AC4 — Prettier configured and runnable via `pnpm format`
-- [ ] AC5 — Husky installed with pre-commit hook that runs `pnpm lint` and `pnpm tsc --noEmit`
-- [ ] AC6 — `.gitignore` excludes node_modules, .next, .env*, and .DS_Store
-- [ ] AC7 — package.json contains start-up scripts: `dev`, `build`, `start`, `lint`, `format`, `test`
-- [ ] AC8 — No secrets committed (checked via hook or manual review)
+- [x] AC1 — Repository initialised with pnpm workspace / monorepo structure (if applicable) or a clean Next.js root
+- [x] AC2 — TypeScript configured with `strict: true` in tsconfig.json
+- [x] AC3 — ESLint configured and runnable via `pnpm lint`
+- [x] AC4 — Prettier configured and runnable via `pnpm format`
+- [x] AC5 — Husky installed with pre-commit hook that runs `pnpm lint` and `pnpm tsc --noEmit`
+- [x] AC6 — `.gitignore` excludes node_modules, .next, .env*, and .DS_Store
+- [x] AC7 — package.json contains start-up scripts: `dev`, `build`, `start`, `lint`, `format`, `test`
+- [x] AC8 — No secrets committed (checked via hook or manual review)
 
 ## Edge cases
 
@@ -47,12 +47,12 @@ This ticket establishes the repository and development tooling foundation. A wor
 
 ### 🟢 GREEN — implementation is done when
 
-- [ ] Every RED test passes, unchanged
-- [ ] `pnpm tsc --noEmit` exits 0 with no errors
-- [ ] `pnpm lint` exits 0 on the current codebase (allowing for auto-fixes)
-- [ ] `pnpm format` successfully formats the codebase
-- [ ] `git commit` runs the pre-commit hook and blocks on lint errors
-- [ ] No `.env*` files are tracked; `.gitignore` prevents them
+- [x] Every RED test passes, unchanged
+- [x] `pnpm tsc --noEmit` exits 0 with no errors
+- [x] `pnpm lint` exits 0 on the current codebase (allowing for auto-fixes)
+- [x] `pnpm format` successfully formats the codebase
+- [x] `git commit` runs the pre-commit hook and blocks on lint errors
+- [x] No `.env*` files are tracked; `.gitignore` prevents them
 
 ## Implementation notes
 
@@ -67,7 +67,7 @@ This ticket establishes the repository and development tooling foundation. A wor
 
 ## Definition of done
 
-- [ ] All ACs met and all RED tests green
-- [ ] No unused variables or dead code
-- [ ] No secrets, credentials, or API keys present
-- [ ] Repository is clean: `git status` shows only tracked files and the configuration files added
+- [x] All ACs met and all RED tests green
+- [x] No unused variables or dead code
+- [x] No secrets, credentials, or API keys present
+- [x] Repository is clean: `git status` shows only tracked files and the configuration files added
