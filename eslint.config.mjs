@@ -1,7 +1,14 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import prettierConfig from 'eslint-config-prettier';
-import nextConfig from 'eslint-config-next';
+import { FlatCompat } from '@eslint/eslintrc';
+
+// eslint-config-next is pinned to the Next 15 line (matching the `next`
+// dependency) and still ships its eslintrc-format config at that version --
+// flat-config-native eslint-config-next only landed with the Next 16 major.
+// FlatCompat bridges the legacy `next/core-web-vitals` preset into this
+// flat config so lint rules stay in lockstep with the Next major we run.
+const compat = new FlatCompat({ baseDirectory: import.meta.dirname });
 
 export default tseslint.config(
   {
@@ -13,11 +20,12 @@ export default tseslint.config(
       'playwright-report/**',
       'test-results/**',
       '.code-review-graph/**',
+      'next-env.d.ts',
     ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
-  ...nextConfig,
+  ...compat.extends('next/core-web-vitals'),
   prettierConfig,
   {
     rules: {

@@ -20,6 +20,7 @@
   "author": "",
   "license": "UNLICENSED",
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.6",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/typography": "^0.5.20",
@@ -30,7 +31,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "eslint": "^9",
-    "eslint-config-next": "^16.3.1",
+    "eslint-config-next": "15.5.23",
     "eslint-config-prettier": "^9",
     "husky": "^9",
     "lucide-react": "^1.32.0",
