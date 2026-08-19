@@ -7,7 +7,7 @@
 | Blocks | AITJ-M0-02, AITJ-M0-03, AITJ-M0-05, AITJ-M0-06, AITJ-M0-07 |
 | PRD refs | §8.1, NFR-5 |
 | Est. | 0.5 days |
-| Phase | 🔴 RED |
+| Phase | 🟢 GREEN |
 
 ## Context
 
