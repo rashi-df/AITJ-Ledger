@@ -92,4 +92,12 @@ Auth.js v5 with a Credentials provider and JWT sessions is the authentication ba
 - [x] No secrets, amounts, passwords, or tokens in logs (NFR-8)
 - [x] Responsive at 360px, tap targets ≥44px (NFR-3) — N/A for this ticket
 - [x] Keyboard accessible, labelled controls, 4.5:1 contrast (NFR-4) — N/A for this ticket
-- [ ] Reviewed by review-agent → passed to qa-agent → QA signed off
+- [ ] Reviewed by review-agent → passed to qa-agent → QA signed off (review-agent PASSed round 3; qa-agent pending)
+
+## Review notes
+
+- **review-agent REJECT (round 1)**: `authorize()` returned `null` (no bcrypt call) when no user matched the email, but ran `verifyPassword` when a user was found — a timing side-channel revealing whether an email is registered, even with a generic error message. FR-A1 requires this to hold constant-time.
+- **Fix (round 1)**: `authorize()` now always calls `verifyPassword` — against the real hash when found, against a fixed `DUMMY_PASSWORD_HASH` (bcrypt cost 12) otherwise. Verified with 3 new tests asserting `verifyPassword` is called exactly once, on both paths.
+- **review-agent REJECT (round 2)**: `lib/auth/config.ts` ran `assertAuthEnv()` eagerly at module-load time (`NextAuth(buildAuthConfig())` at the top level), and `app/api/auth/[...nextauth]/route.ts` imports that module. Next.js's production build imports every route handler during "Collecting page data" — with no `AUTH_SECRET`/`AUTH_URL` present at Docker *build* time (only injected as compose *runtime* env) — so `docker compose build app` failed outright. Invisible to `tsc`/`lint`/`pnpm test` and to `make up` only because the running dev stack was reusing a stale pre-branch image.
+- **Fix (round 2)**: `NextAuth(buildAuthConfig())` construction is now lazy and cached (`getAuthApi()`), only running on first real request. Verified via `docker build --target builder --no-cache` succeeding with `AUTH_SECRET`/`AUTH_URL` deliberately absent.
+- **review-agent PASS (round 3)**: independently reproduced the clean `docker build --target builder` success (env stripped via `env -i`), full suite 53/53 inside the real container, tsc/lint clean, timing-fix and lazy-env-fix both hold. Flagged a real but non-blocking gap: the round-2 fix's own regression test (in `tests/docker/dockerfile.test.ts`) currently cannot execute through any documented command (`pnpm test`/`make test`/`make ci`) because `vitest.config.ts`'s project split (from AITJ-M0-06, already merged) excludes `tests/docker/` from every project's include globs, and nothing wires it into CI. This predates this ticket and is out of this ticket's scope to fix, but is worth a follow-up ticket/M0-06 amendment — recommended: give `tests/docker` its own vitest project or an explicit `make test-docker`/CI step.
