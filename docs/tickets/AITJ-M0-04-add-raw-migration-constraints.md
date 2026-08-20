@@ -89,3 +89,8 @@ The Prisma schema (M0-03) defines `@@unique([name, type])` on the Category model
 - [x] `prisma migrate deploy` applies it without error
 - [x] Both case-insensitive uniqueness and type check constraints are enforced at the database level
 - [x] Idempotency confirmed: running the migration twice succeeds
+
+## Review notes
+
+- **review-agent REJECT (round 1)**: `DROP CONSTRAINT IF EXISTS "Category_name_type_key"` was a no-op — Prisma's M0-03 `@@unique([name, type])` was emitted as a bare `CREATE UNIQUE INDEX`, not a table constraint, so it has no `pg_constraint` entry and the drop silently did nothing. The old case-sensitive index survived alongside the new functional one, and no test caught it. Fixed in `453add2`: `DROP INDEX IF EXISTS` instead, plus a new regression test asserting `Category_name_type_key` is absent from `pg_indexes` post-migration.
+- **review-agent PASS (round 2)**: fix verified — migration read line-by-line, all statements idempotent (`DROP INDEX IF EXISTS`, `CREATE UNIQUE INDEX IF NOT EXISTS`, `CREATE OR REPLACE FUNCTION`, `DROP TRIGGER IF EXISTS` before `CREATE TRIGGER`). Full suite 18/18 passing against real Postgres 16, `tsc`/`lint` clean. Type-consistency trigger (not a CHECK constraint, since Postgres CHECK can't reference another table) confirmed correct. No app/repository code exists yet at this stage, so N+1/data-leak/Server Action rules are correctly out of scope.
