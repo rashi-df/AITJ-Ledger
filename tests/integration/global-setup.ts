@@ -23,6 +23,32 @@ import { PrismaClient } from '@prisma/client';
  * so `getDatabaseUrl()` (in the test files themselves) starts a fresh,
  * empty Testcontainers Postgres instance for the run — there is nothing
  * to clean up, so this setup is a no-op.
+ *
+ * HOTFIX (live data-loss bug found during AITJ-M0-07's QA): `DATABASE_URL`
+ * being set is not, on its own, evidence that the database is disposable
+ * — inside the `app` container it *always* points at the persistent
+ * Docker Compose `db` service (see tests/schema/container.ts), which is
+ * exactly the same service a developer's real seeded admin account and
+ * categories (and, from M1 onward, real committee transaction data) live
+ * in. Truncating on the presence of `DATABASE_URL` alone wiped that live
+ * data every time `make test`/`make ci` ran.
+ *
+ * The guard below refuses to truncate if the `User` table already has any
+ * rows. A genuinely fresh database — a brand-new Testcontainers instance,
+ * or a compose `db` volume right after `prisma migrate deploy` with no
+ * seed run yet — has zero `User` rows, since migrations alone create no
+ * data. As soon as either a real admin account (`pnpm seed`) or a
+ * `tests/schema/*` fixture user exists, this intentionally stops
+ * truncating for every run after that — the tradeoff is a non-empty
+ * table (schema tests' own fixture rows accumulate; they use unique
+ * emails/names so this doesn't break anything by itself, see
+ * tests/schema/fixtures.ts) rather than ever risking a real user's data.
+ * Known follow-up (tracked, not fixed here): tests/schema/*.test.ts
+ * fixtures are never deleted after the run, so this table never goes
+ * back to empty on its own once any test has run against a shared
+ * database — restore a clean slate explicitly with `make fresh` /
+ * `prisma migrate reset` if you want the pre-hotfix "always clean"
+ * behaviour back.
  */
 export default async function setup(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
@@ -41,6 +67,24 @@ export default async function setup(): Promise<void> {
       // applied yet, so there are no app tables to truncate. Each test
       // file's own `beforeAll` runs `prisma migrate deploy` before use.
       return;
+    }
+
+    if (tables.some((row) => row.tablename === 'User')) {
+      const [{ count }] = await prisma.$queryRawUnsafe<{ count: number }[]>(
+        `SELECT COUNT(*)::int AS count FROM "User"`,
+      );
+
+      if (count > 0) {
+        // Refuse to touch a database that already holds real (or at
+        // least real-looking) user data — never assume `DATABASE_URL`
+        // being set means "safe to wipe". Run `make fresh` /
+        // `prisma migrate reset` explicitly if you actually intend to
+        // reset a shared dev database.
+        console.warn(
+          '[tests/integration/global-setup] Skipping truncate: the "User" table already has rows, so this is not a disposable database.',
+        );
+        return;
+      }
     }
 
     const tableList = tables.map((row) => `"${row.tablename}"`).join(', ');
