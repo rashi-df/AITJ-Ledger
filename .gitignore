@@ -11,3 +11,7 @@ playwright-report/
 test-results/
 *.tsbuildinfo
 .npmrc
+*.log
+.vscode/
+.idea/
+.claude/settings.local.json
