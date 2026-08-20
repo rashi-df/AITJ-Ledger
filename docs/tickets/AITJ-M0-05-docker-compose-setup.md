@@ -121,3 +121,8 @@ This ticket also delivers the root `Makefile` — the single documented entry po
 - [x] `Makefile` exists and every target documented in `CLAUDE.md` works against the running stack
 - [x] No `make` target runs project tooling on the host
 - [x] No secrets hardcoded in Dockerfile, compose file or Makefile
+
+## Review notes
+
+- **review-agent REJECT (round 1)**: `.env.local.example` didn't match how `docker compose` actually auto-loads env files — it only reads a file literally named `.env`, never `.env.local`, so AUTH_SECRET/SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD silently resolved to empty strings and the app container never became healthy from a clean checkout. Also, the integration tests only passed locally thanks to an untracked `.env` that wasn't part of any commit. Fixed in `3c61639`: renamed to `.env.example` (matching the repo's existing `.env`/`!.env.example` convention), and both integration suites now self-provision `.env` via `cp .env.example .env` in `beforeAll` if it doesn't already exist.
+- **review-agent PASS (round 2)**: fix verified against a live stack — `docker compose up -d` brings both services to `healthy`, migrations + seed stub + `next start` all confirmed via container logs, all 15 Makefile targets exercised against the running stack, non-root `nextjs` user confirmed, no hardcoded secrets. Non-blocking notes carried forward: `package.json` engines `>=22` vs Dockerfile `node:20-alpine` (ticket-specified, pre-existing) causes a harmless `WARN Unsupported engine`; `prisma/seed.ts` is intentionally a stub, full seed logic deferred to AITJ-M0-07.
