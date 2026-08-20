@@ -60,11 +60,15 @@ test:
 	docker compose exec app pnpm test
 
 test-unit:
-	docker compose exec app pnpm exec vitest run
+	docker compose exec app pnpm test:unit
 
 test-e2e:
-	docker compose exec app pnpm exec playwright test
+	docker compose exec app pnpm test:e2e
 
+# Deliberately excludes test-e2e: Playwright's browser + webServer
+# startup cost makes it too slow for a "run this before every push" CI
+# gate, and it isn't wired into any CI workflow yet. Run `make test-e2e`
+# separately when touching anything E2E-relevant.
 ci: typecheck lint test
 
 psql:

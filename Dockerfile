@@ -5,7 +5,22 @@
 # runner stage later copies this stage's full node_modules verbatim so the
 # Prisma CLI and tsx (used to run migrations/seed at startup) are guaranteed
 # to be present without fighting pnpm's symlinked store during a pruned copy.
-FROM node:20-alpine AS deps
+#
+# Node 22, matching package.json's `engines.node`. AITJ-M0-06 needs this: on
+# Node 20 the pinned `testcontainers`/`undici` versions throw
+# `webidl.util.markAsUncloneable is not a function` the moment
+# Testcontainers talks to the Docker daemon over the mounted socket (see
+# docker-compose.yml), which breaks `make test`/`make ci` for every
+# integration test that starts a container.
+#
+# Debian (bookworm-slim), not Alpine: `make test-e2e` execs
+# `pnpm test:e2e` in the *running* `app` container (CLAUDE.md's
+# no-host-tooling rule), so Playwright's browsers have to actually launch
+# in there. Playwright only ships glibc-built Chromium binaries — musl
+# (Alpine's libc) can't run them, no matter what system packages are
+# installed alongside. Debian gets `playwright install --with-deps` a
+# distro it recognises and can install real dependencies for.
+FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
@@ -15,6 +30,14 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS builder
 WORKDIR /app
 COPY . .
+# Prisma's platform detection shells out to the `openssl` CLI to pick the
+# right query-engine binary (debian-openssl-3.0.x vs. the older 1.1.x);
+# bookworm-slim ships libssl3 but not the `openssl` binary itself, so
+# without it detection silently falls back to the wrong (1.1.x) engine
+# and the runtime later fails with "was generated for ... 1.1.x, but the
+# actual deployment required ... 3.0.x".
+RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
 # The deps stage only had package.json + the lockfile, so pnpm's Prisma
 # postinstall hook had no schema to generate against; regenerate now that
 # prisma/schema.prisma is present, before the type-checked Next.js build.
@@ -22,7 +45,7 @@ RUN pnpm exec prisma generate
 RUN pnpm build
 
 # --- runner ------------------------------------------------------------------
-FROM node:20-alpine AS runner
+FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -34,13 +57,18 @@ ENV TZ=Asia/Kolkata
 # and the healthcheck's `curl localhost` (loopback) then fails to connect.
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+# Playwright's install script (and the apt calls it shells out to below)
+# must not block on an interactive prompt during the image build.
+ENV DEBIAN_FRONTEND=noninteractive
 
 # curl is required by the Docker healthcheck below; corepack provides the
 # pnpm binary used by `make` targets that exec into this container (tsc,
 # eslint, vitest, playwright).
-RUN apk add --no-cache curl && corepack enable
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+  && rm -rf /var/lib/apt/lists/* \
+  && corepack enable
 
-RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001 -G nodejs
+RUN groupadd --gid 1001 nodejs && useradd --uid 1001 --gid nodejs --create-home --shell /bin/bash nextjs
 
 # Corepack's default cache lives under $HOME/.cache, which for root is
 # /root — mode 0700, unreadable by the nextjs user (uid 1001) that actually
@@ -67,6 +95,16 @@ RUN chmod +x ./docker/entrypoint.sh
 # itself, so tsc (incremental build info) and other tooling that writes new
 # files directly under /app need this too.
 RUN chown nextjs:nodejs /app
+
+# Installs Chromium plus the OS-level shared libraries it needs (nss,
+# atk, gtk, etc.) via apt -- `--with-deps` only knows how to do this on a
+# distro it recognises, hence Debian above. Must run as root (apt); the
+# browser cache then needs to be readable by nextjs at `pnpm test:e2e`
+# exec time, same reasoning as COREPACK_HOME above.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN pnpm exec playwright install --with-deps chromium \
+  && rm -rf /var/lib/apt/lists/* \
+  && chown -R nextjs:nodejs /ms-playwright
 
 USER nextjs
 
