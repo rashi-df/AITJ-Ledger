@@ -1,0 +1,21 @@
+# Local development override: `docker compose -f docker-compose.yml -f docker-compose.dev.yml up`
+# Adds hot reload (next dev) and exposes the database port for local
+# debugging (psql, a GUI client, etc).
+services:
+  db:
+    ports:
+      - '5432:5432'
+
+  app:
+    build:
+      target: deps
+    entrypoint: []
+    command: sh -c "pnpm exec prisma migrate deploy && pnpm dev"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      NODE_ENV: development
+    healthcheck:
+      disable: true
