@@ -59,6 +59,25 @@ describe('docker > Dockerfile', () => {
     expect(contents).toMatch(/adduser\s+-S\s+nextjs\s+-u\s+1001\s+-G\s+nodejs/);
   });
 
+  test('builder stage (next build) succeeds without AUTH_SECRET/AUTH_URL in the build context', () => {
+    // AITJ-M1-01 round 2: `next build`'s "Collecting page data" step imports
+    // every route handler, including app/api/auth/[...nextauth]/route.ts.
+    // `.dockerignore` excludes `.env`, so AUTH_SECRET/AUTH_URL are never
+    // present in the build context (they're runtime-only env, injected by
+    // docker-compose.yml). If `lib/auth/config.ts` ever goes back to
+    // validating those eagerly at module-evaluation time (rather than
+    // lazily, on first real request), this build fails outright with
+    // "Error: AUTH_SECRET is required" during page-data collection, before
+    // a single request is ever served.
+    expect(() =>
+      execSync('docker build --target builder -t aitj-ledger-builder-check .', {
+        cwd: repoRoot,
+        stdio: 'pipe',
+        timeout: 5 * 60 * 1000,
+      }),
+    ).not.toThrow();
+  });
+
   test('exec into a network-isolated app container still resolves pnpm without a registry call', () => {
     execSync('docker build --target runner -t aitj-ledger-corepack-check .', {
       cwd: repoRoot,

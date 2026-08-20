@@ -1,5 +1,6 @@
-import NextAuth, { type NextAuthConfig } from 'next-auth';
+import NextAuth, { type NextAuthConfig, type Session } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+import type { NextRequest } from 'next/server';
 import { findUserForLogin } from '../repositories/user';
 import { verifyPassword } from './password';
 
@@ -125,4 +126,54 @@ export function buildAuthConfig(env: AuthEnv = process.env): NextAuthConfig {
   };
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth(buildAuthConfig());
+type NextAuthApi = ReturnType<typeof NextAuth>;
+
+// `buildAuthConfig()` (via `assertAuthEnv`) throws if `AUTH_SECRET`/`AUTH_URL`
+// are missing. Calling `NextAuth(buildAuthConfig())` at module-evaluation
+// time — as a top-level `export const { ... } = NextAuth(...)` — means that
+// throw fires the instant anything imports this module, which is exactly
+// what `next build`'s "Collecting page data" step does for every route
+// handler, including this one's, in the build container. The build
+// container never has `AUTH_SECRET`/`AUTH_URL` (those are runtime-only env
+// via docker-compose.yml), so a fresh `docker compose build` fails before a
+// single request is ever served.
+//
+// Deferring the `NextAuth(...)` call to first *use* — inside the wrappers
+// below — means env validation only ever runs when a request actually
+// reaches the app at runtime, when the real env is guaranteed to be
+// present. The underlying NextAuth instance is still built once and cached,
+// not rebuilt per request.
+let cachedApi: NextAuthApi | undefined;
+
+function getAuthApi(): NextAuthApi {
+  if (!cachedApi) {
+    cachedApi = NextAuth(buildAuthConfig());
+  }
+  return cachedApi;
+}
+
+export const handlers = {
+  GET: (request: NextRequest) => getAuthApi().handlers.GET(request),
+  POST: (request: NextRequest) => getAuthApi().handlers.POST(request),
+};
+
+// `NextAuthApi['auth']` is an overloaded type (no-arg for Server
+// Components/actions, request-taking for middleware); this app only ever
+// calls the no-arg form, so the wrapper is typed to that form explicitly
+// rather than via `ReturnType<NextAuthApi['auth']>`, which would resolve to
+// the (unused-here) middleware overload instead.
+export async function auth(): Promise<Session | null> {
+  return getAuthApi().auth();
+}
+
+export async function signIn(
+  ...args: Parameters<NextAuthApi['signIn']>
+): ReturnType<NextAuthApi['signIn']> {
+  return getAuthApi().signIn(...args);
+}
+
+export async function signOut(
+  ...args: Parameters<NextAuthApi['signOut']>
+): ReturnType<NextAuthApi['signOut']> {
+  return getAuthApi().signOut(...args);
+}
