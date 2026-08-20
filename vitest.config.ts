@@ -35,6 +35,7 @@ export default defineConfig({
           fileParallelism: false,
           isolate: false,
           sequence: { groupOrder: 1 },
+          globalSetup: ['tests/integration/global-setup.ts'],
         },
       },
     ],
