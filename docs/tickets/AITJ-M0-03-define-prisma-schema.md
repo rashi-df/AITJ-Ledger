@@ -7,7 +7,7 @@
 | Blocks | AITJ-M0-04, AITJ-M0-07 |
 | PRD refs | §6, A5, A6 |
 | Est. | 1.5 days |
-| Phase | 🔴 RED |
+| Phase | 🟢 GREEN |
 
 ## Context
 
@@ -15,16 +15,16 @@ This ticket defines the Prisma schema (§6 of the PRD) — the complete data mod
 
 ## Acceptance criteria
 
-- [ ] AC1 — `prisma/schema.prisma` contains all models from §6: User, Invite, Category, Transaction, AuditLog, AppSetting
-- [ ] AC2 — All fields, types, and relations match §6 exactly (enum TransactionType, enum AuditAction, all field constraints)
-- [ ] AC3 — All indexes from §6 are present (e.g., @@index on transactions for efficient queries)
-- [ ] AC4 — Relations are correctly bidirectional and enforce referential integrity
-- [ ] AC5 — `onDelete: Restrict` is applied to the Transaction → Category relation (FR-C7)
-- [ ] AC6 — `Decimal(14,2)` is used for Transaction.amount, rejecting 3+ decimal places and storing ₹99,99,99,999.99 exactly
-- [ ] AC7 — Transaction.occurredOn is `@db.Date` (no time component, per A5)
-- [ ] AC8 — A migration file is generated and can be applied to a real PostgreSQL 16 database
-- [ ] AC9 — `prisma db push` or `prisma migrate deploy` applies the schema without errors
-- [ ] AC10 — The database is queryable immediately after migration; a smoke test can insert and read a row
+- [x] AC1 — `prisma/schema.prisma` contains all models from §6: User, Invite, Category, Transaction, AuditLog, AppSetting
+- [x] AC2 — All fields, types, and relations match §6 exactly (enum TransactionType, enum AuditAction, all field constraints)
+- [x] AC3 — All indexes from §6 are present (e.g., @@index on transactions for efficient queries)
+- [x] AC4 — Relations are correctly bidirectional and enforce referential integrity
+- [x] AC5 — `onDelete: Restrict` is applied to the Transaction → Category relation (FR-C7)
+- [x] AC6 — `Decimal(14,2)` is used for Transaction.amount, rejecting 3+ decimal places and storing ₹99,99,99,999.99 exactly
+- [x] AC7 — Transaction.occurredOn is `@db.Date` (no time component, per A5)
+- [x] AC8 — A migration file is generated and can be applied to a real PostgreSQL 16 database
+- [x] AC9 — `prisma db push` or `prisma migrate deploy` applies the schema without errors
+- [x] AC10 — The database is queryable immediately after migration; a smoke test can insert and read a row
 
 ## Edge cases
 
@@ -60,11 +60,11 @@ This ticket defines the Prisma schema (§6 of the PRD) — the complete data mod
 
 ### 🟢 GREEN — implementation is done when
 
-- [ ] Every RED test passes, unchanged
-- [ ] `prisma generate` succeeds (Prisma client is generated)
-- [ ] `prisma migrate dev --name init` creates a migration file without errors
-- [ ] `pnpm tsc --noEmit` and `pnpm lint` pass
-- [ ] No data loss or unexpected schema changes
+- [x] Every RED test passes, unchanged
+- [x] `prisma generate` succeeds (Prisma client is generated)
+- [x] `prisma migrate dev --name init` creates a migration file without errors
+- [x] `pnpm tsc --noEmit` and `pnpm lint` pass
+- [x] No data loss or unexpected schema changes
 
 ## Implementation notes
 
@@ -81,9 +81,14 @@ This ticket defines the Prisma schema (§6 of the PRD) — the complete data mod
 
 ## Definition of done
 
-- [ ] All ACs met and all RED tests green
-- [ ] `prisma/migrations/` contains the initial migration file
-- [ ] Schema matches §6 exactly — every model, field, index, and relation
-- [ ] Database can be created and is queryable
-- [ ] No migrations fail on apply
-- [ ] Integration tests confirm constraints work at the database level
+- [x] All ACs met and all RED tests green
+- [x] `prisma/migrations/` contains the initial migration file
+- [x] Schema matches §6 exactly — every model, field, index, and relation
+- [x] Database can be created and is queryable
+- [x] No migrations fail on apply
+- [x] Integration tests confirm constraints work at the database level
+
+## Review notes
+
+- **review-agent PASS (round 1)**: schema verified byte-for-byte against PRD §6 (models, enums, relations, indexes). `onDelete: Restrict` confirmed enforced at the DB level via a live Testcontainers Postgres 16 delete attempt. All 11 RED tests run and pass (5 files, 11/11) against real Postgres, not a mock. `tsc --noEmit` and `pnpm lint` clean. Decimal precision and DATE-only `occurredOn` verified with exact-value assertions, not float/rounded comparisons. No Prisma calls added outside this ticket's own test fixtures; citext uniqueness and the type-check constraint correctly deferred to AITJ-M0-04.
+- **Single-commit deviation**: this ticket landed as one commit (`9b27383`) rather than the usual RED-then-GREEN two-commit shape. `.husky/pre-commit` runs `lint && tsc --noEmit`, and the RED tests reference Prisma model types that don't exist until the schema itself is committed, so a literal RED-only commit fails the hook (short of `--no-verify`, which is forbidden). Tests were verified to fail for the right reason against the schema stub before the schema was restored and the single commit made. review-agent reviewed this reasoning and accepted it as a legitimate, schema-ticket-specific exception, not a pattern to repeat elsewhere.
