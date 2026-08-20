@@ -7,7 +7,7 @@
 | Blocks | none |
 | PRD refs | NFR-10, FR-C2, FR-C3, FR-A5, §12.2 |
 | Est. | 1.5 days |
-| Phase | 🔴 RED |
+| Phase | 🟢 GREEN |
 
 ## Context
 
@@ -134,3 +134,4 @@ This ticket implements the seed script (`prisma/seed.ts`) that runs at applicati
   - Added `createIsolatedSeedSchema()`: for just the "seeding against a real database" and "app is queryable immediately after seeding" blocks (the ones that need genuine first-boot emptiness to validate AC4/AC6/T5-T7), creates a throwaway Postgres *schema* on the same database connection (`CREATE SCHEMA "seed_test_<uuid>"`, migrated independently via `prisma migrate deploy` against a `?schema=` connection URL), runs `runSeed` against it, and drops the schema in `afterAll`. This gives the tests a genuinely empty `User` table every run — immune to both the real seeded admin and any orphaned fixture rows from sibling test files — without ever reading, deleting, or risking real data. The "does not create an admin if a user already exists" and env-validation blocks are unaffected (their assertions are delta-based / gate-agnostic and don't need isolation).
   - Verified live: ran `make fresh` + `make seed` for a clean baseline (real `admin@aitj.local` + 16 canonical categories), then ran the full suite twice back-to-back inside the compose stack (`docker compose exec app pnpm test`) — 35/35 passing both times. Confirmed after both runs: the real admin (`admin@aitj.local`) and the real `Donation`/`Water`/etc. categories are untouched, and no `seed_test_*` schema is left behind (teardown ran cleanly). `tsc --noEmit`, `pnpm lint`, and `prettier --check` all clean.
   - No production code (`prisma/seed-lib.ts`, `prisma/seed.ts`) or `tests/integration/global-setup.ts` was touched — the fix is entirely within `tests/integration/seed.test.ts`.
+- **review-agent PASS (round 3)**: independently verified — full suite 35/35 twice, tsc/lint clean, real admin (1 row) and real categories (16 canonical, 42 total with accumulated fixtures) unchanged across both runs, `createIsolatedSeedSchema()` confirmed leaving no leftover schema. The M0-03/M0-04 orphaned-fixture follow-up remains correctly out of scope for this ticket.
