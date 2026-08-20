@@ -1,0 +1,15 @@
+// Placeholder Prisma schema.
+//
+// The full data model (User, Invite, Category, Transaction, AuditLog,
+// AppSetting) is defined in AITJ-M0-03 per PRD §6. This file exists so the
+// `prisma/` directory structure required by §8.2 is in place; do not add
+// models here.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

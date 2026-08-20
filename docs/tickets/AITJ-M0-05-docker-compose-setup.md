@@ -36,6 +36,7 @@ This ticket also delivers the root `Makefile` — the single documented entry po
 - [ ] AC17 — `make ci` runs `typecheck`, `lint` and `test` in that order and fails fast on the first non-zero exit
 - [ ] AC18 — `make psql` opens a psql shell against database `aitj`; `make fresh` drops, migrates and seeds in that order
 - [ ] AC19 — All targets are declared `.PHONY`; `make` with no argument prints usage rather than running anything destructive
+- [ ] AC20 — `next.config.ts` sets `output: 'standalone'` before the runner stage is built — the multi-stage Dockerfile copies `.next/standalone`, which does not exist without it (flagged by qa-agent during AITJ-M0-02; deliberately deferred to this ticket as out of scope there)
 
 ## Edge cases
 
@@ -89,7 +90,7 @@ This ticket also delivers the root `Makefile` — the single documented entry po
   1. **Dependencies:** `FROM node:20-alpine AS deps` → install pnpm, copy lockfile, install dependencies
   2. **Builder:** `FROM deps AS builder` → copy source, run `pnpm build`
   3. **Runner:** `FROM node:20-alpine AS runner` → copy built app and node_modules, create non-root user, expose port 3000, set CMD to `node server.js` or similar
-  - Use `output: 'standalone'` in `next.config.js` to reduce the final image size
+  - Set `output: 'standalone'` in `next.config.ts` — this is NOT present as of AITJ-M0-02 and must be added here. It is not merely an image-size optimisation: the runner stage copies `.next/standalone`, so the build fails outright without it.
 - Create `docker-compose.yml` with:
   - `db` service: `postgres:16-alpine`, environment `POSTGRES_PASSWORD` from env var (or hardcoded to `postgres` for dev), volume `postgres_data:/var/lib/postgresql/data`, healthcheck via `pg_isready`
   - `app` service: builds from Dockerfile, depends on `db`, environment variables injected, ports `3000:3000`, healthcheck via `curl`

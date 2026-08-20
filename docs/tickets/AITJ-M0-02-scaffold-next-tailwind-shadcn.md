@@ -7,7 +7,7 @@
 | Blocks | AITJ-M0-03, AITJ-M0-05, AITJ-M0-06 |
 | PRD refs | §8.1, §8.2, NFR-5 |
 | Est. | 1 day |
-| Phase | 🔴 RED |
+| Phase | 🟢 GREEN |
 
 ## Context
 
@@ -15,21 +15,21 @@ This ticket scaffolds the Next.js 15 App Router framework, Tailwind CSS for styl
 
 ## Acceptance criteria
 
-- [ ] AC1 — Next.js 15 installed and configured for App Router (not Pages Router)
-- [ ] AC2 — Tailwind CSS integrated with `@tailwindcss/forms` and `@tailwindcss/typography` plugins
-- [ ] AC3 — shadcn/ui initialized with a components.json configuration
-- [ ] AC4 — Directory structure created per §8.2: `app/`, `components/`, `lib/`, `actions/`, `prisma/`
-  - [ ] `app/(auth)/` with layout for login and invite routes (pages not yet implemented)
-  - [ ] `app/(app)/` with layout for authenticated routes (pages not yet implemented)
-  - [ ] `app/api/` directory for route handlers (not yet implemented)
-  - [ ] `components/ui/` for shadcn primitives
-  - [ ] `lib/auth/`, `lib/db/`, `lib/repositories/`, `lib/validation/`, `lib/period/`, `lib/format/`
-  - [ ] `actions/` directory for Server Actions (not yet implemented)
-  - [ ] `prisma/` directory with schema.prisma and migrations/ folder
-- [ ] AC5 — A minimal landing/404 page renders without error
-- [ ] AC6 — Tailwind build succeeds: `pnpm build` compiles CSS
-- [ ] AC7 — No hardcoded secrets in code or config
-- [ ] AC8 — `next.config.js` is present and typescript/ESLint integration is configured
+- [x] AC1 — Next.js 15 installed and configured for App Router (not Pages Router)
+- [x] AC2 — Tailwind CSS integrated with `@tailwindcss/forms` and `@tailwindcss/typography` plugins
+- [x] AC3 — shadcn/ui initialized with a components.json configuration
+- [x] AC4 — Directory structure created per §8.2: `app/`, `components/`, `lib/`, `actions/`, `prisma/`
+  - [x] `app/(auth)/` with layout for login and invite routes (pages not yet implemented)
+  - [x] `app/(app)/` with layout for authenticated routes (pages not yet implemented)
+  - [x] `app/api/` directory for route handlers (not yet implemented)
+  - [x] `components/ui/` for shadcn primitives
+  - [x] `lib/auth/`, `lib/db/`, `lib/repositories/`, `lib/validation/`, `lib/period/`, `lib/format/`
+  - [x] `actions/` directory for Server Actions (not yet implemented)
+  - [x] `prisma/` directory with schema.prisma and migrations/ folder
+- [x] AC5 — A minimal landing/404 page renders without error
+- [x] AC6 — Tailwind build succeeds: `pnpm build` compiles CSS
+- [x] AC7 — No hardcoded secrets in code or config
+- [x] AC8 — `next.config.js` is present and typescript/ESLint integration is configured
 
 ## Edge cases
 
@@ -54,13 +54,13 @@ This ticket scaffolds the Next.js 15 App Router framework, Tailwind CSS for styl
 
 ### 🟢 GREEN — implementation is done when
 
-- [ ] Every RED test passes, unchanged
-- [ ] `pnpm dev` starts the development server without errors
-- [ ] `pnpm build` compiles successfully, producing `.next/` output
-- [ ] `pnpm lint` and `pnpm tsc --noEmit` pass
-- [ ] The directory structure matches §8.2 exactly
-- [ ] A minimal page (e.g., `/page.tsx`) renders without error
-- [ ] Tailwind CSS is active (a test page applies a Tailwind class, e.g., `text-red-500`)
+- [x] Every RED test passes, unchanged
+- [x] `pnpm dev` starts the development server without errors
+- [x] `pnpm build` compiles successfully, producing `.next/` output
+- [x] `pnpm lint` and `pnpm tsc --noEmit` pass
+- [x] The directory structure matches §8.2 exactly
+- [x] A minimal page (e.g., `/page.tsx`) renders without error
+- [x] Tailwind CSS is active (a test page applies a Tailwind class, e.g., `text-red-500`)
 
 ## Implementation notes
 
@@ -75,9 +75,9 @@ This ticket scaffolds the Next.js 15 App Router framework, Tailwind CSS for styl
 
 ## Definition of done
 
-- [ ] All ACs met and all RED tests green
-- [ ] `git status` shows only tracked files (no build artifacts, .next/, or node_modules)
-- [ ] No hardcoded secrets or API keys
-- [ ] TypeScript strict mode passes
-- [ ] ESLint and Prettier check pass
-- [ ] The app structure is ready for M1 (Auth) work
+- [x] All ACs met and all RED tests green
+- [x] `git status` shows only tracked files (no build artifacts, .next/, or node_modules)
+- [x] No hardcoded secrets or API keys
+- [x] TypeScript strict mode passes
+- [x] ESLint and Prettier check pass
+- [x] The app structure is ready for M1 (Auth) work
