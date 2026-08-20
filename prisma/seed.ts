@@ -1,32 +1,34 @@
-// Seed entry point, wired up by AITJ-M0-05 so the Docker app container has a
-// startup hook to call. The full seed logic (default categories, admin
-// account, idempotency) is AITJ-M0-07's scope and ships there under its own
-// RED -> GREEN cycle; deliberately not implemented here (see AITJ-M0-05
-// report / ticket notes).
-//
-// This stub only validates the environment variables the eventual seed will
-// require, so a misconfigured deployment fails loudly at startup (E4 in
-// AITJ-M0-07) instead of silently booting with no admin account.
+// Seed entry point, run by the Docker container's entrypoint (AITJ-M0-05)
+// after migrations and before the server starts, and available via
+// `pnpm seed` for local/manual use. Boots the database with the default
+// categories and the first admin account (NFR-10). The actual seeding
+// logic lives in `prisma/seed-lib.ts` so it can be imported and exercised
+// directly from tests without spawning a subprocess for every case; this
+// file is deliberately a thin script wrapper around it so the
+// `process.exit` calls it makes are only reachable when actually run as a
+// script (see tests/integration/seed.test.ts, which execs this file as a
+// subprocess to test that behaviour for real).
+import { PrismaClient } from '@prisma/client';
+import { runSeed, SeedConfigError } from './seed-lib';
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    console.error(`${name} is required`);
-    process.exit(1);
+async function main(): Promise<void> {
+  const prisma = new PrismaClient();
+  try {
+    await runSeed(prisma, {
+      SEED_ADMIN_EMAIL: process.env.SEED_ADMIN_EMAIL,
+      SEED_ADMIN_PASSWORD: process.env.SEED_ADMIN_PASSWORD,
+    });
+    console.log('Seed completed: default categories and admin account are in place.');
+  } finally {
+    await prisma.$disconnect();
   }
-  return value;
 }
 
-function main() {
-  const email = requireEnv('SEED_ADMIN_EMAIL');
-  const password = requireEnv('SEED_ADMIN_PASSWORD');
-
-  if (password.length < 10) {
-    console.error('SEED_ADMIN_PASSWORD must be at least 10 characters');
-    process.exit(1);
+main().catch((error: unknown) => {
+  if (error instanceof SeedConfigError) {
+    console.error(error.message);
+  } else {
+    console.error('Seed failed:', error);
   }
-
-  console.log(`Seed placeholder OK for ${email} — full seed logic ships in AITJ-M0-07.`);
-}
-
-main();
+  process.exit(1);
+});

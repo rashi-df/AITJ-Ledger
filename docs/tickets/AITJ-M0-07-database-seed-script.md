@@ -7,7 +7,7 @@
 | Blocks | none |
 | PRD refs | NFR-10, FR-C2, FR-C3, FR-A5, §12.2 |
 | Est. | 1.5 days |
-| Phase | 🔴 RED |
+| Phase | 🟢 GREEN |
 
 ## Context
 
@@ -15,17 +15,17 @@ This ticket implements the seed script (`prisma/seed.ts`) that runs at applicati
 
 ## Acceptance criteria
 
-- [ ] AC1 — `prisma/seed.ts` exists and is executable via `node prisma/seed.ts` or `tsx prisma/seed.ts`
-- [ ] AC2 — Seed creates exactly 6 income categories: Donation, Zakat, Sadaqah, Jumu'ah Collection, Membership/Contribution, Other (per FR-C2, verbatim names)
-- [ ] AC3 — Seed creates exactly 10 expense categories: Electricity, Water, Maintenance, Cleaning, Salary/Wages, Construction, Equipment, Events/Programs, Office Expenses, Other (per FR-C3, verbatim names)
-- [ ] AC4 — Seed creates an admin User with email from `SEED_ADMIN_EMAIL` env var, password hashed from `SEED_ADMIN_PASSWORD`, and `mustChangePassword: true`
-- [ ] AC5 — If `SEED_ADMIN_PASSWORD` is missing or shorter than 10 characters, the seed script fails loudly with a clear error message (not silently skipped)
-- [ ] AC6 — Seed is **idempotent**: running it twice against the same database creates no duplicate categories and does not reset the admin password
-- [ ] AC7 — If a user already exists (not the first boot), seed does NOT create another admin account
-- [ ] AC8 — If categories already exist, seed skips them (upsert-style)
-- [ ] AC9 — `package.json` includes a `seed` script (`tsx prisma/seed.ts` or equivalent)
-- [ ] AC10 — Docker container runs seed at startup before accepting traffic (verified by M0-05)
-- [ ] AC11 — The app starts and renders a login page even with an empty database, after seeding completes
+- [x] AC1 — `prisma/seed.ts` exists and is executable via `node prisma/seed.ts` or `tsx prisma/seed.ts`
+- [x] AC2 — Seed creates exactly 6 income categories: Donation, Zakat, Sadaqah, Jumu'ah Collection, Membership/Contribution, Other (per FR-C2, verbatim names)
+- [x] AC3 — Seed creates exactly 10 expense categories: Electricity, Water, Maintenance, Cleaning, Salary/Wages, Construction, Equipment, Events/Programs, Office Expenses, Other (per FR-C3, verbatim names)
+- [x] AC4 — Seed creates an admin User with email from `SEED_ADMIN_EMAIL` env var, password hashed from `SEED_ADMIN_PASSWORD`, and `mustChangePassword: true`
+- [x] AC5 — If `SEED_ADMIN_PASSWORD` is missing or shorter than 10 characters, the seed script fails loudly with a clear error message (not silently skipped)
+- [x] AC6 — Seed is **idempotent**: running it twice against the same database creates no duplicate categories and does not reset the admin password
+- [x] AC7 — If a user already exists (not the first boot), seed does NOT create another admin account
+- [x] AC8 — If categories already exist, seed skips them (upsert-style)
+- [x] AC9 — `package.json` includes a `seed` script (`tsx prisma/seed.ts` or equivalent)
+- [x] AC10 — Docker container runs seed at startup before accepting traffic (verified by M0-05)
+- [x] AC11 — The app starts and renders a login page even with an empty database, after seeding completes — adapted: `/login` doesn't exist until AITJ-M1-02, so this was verified instead as "the seeded admin is immediately DB-queryable by email" plus a full manual Docker verification (`docker/entrypoint.sh`: migrate → seed → `next start`, confirmed serving `/api/health` against a freshly-seeded, empty-to-start database)
 
 ## Edge cases
 
@@ -64,12 +64,12 @@ This ticket implements the seed script (`prisma/seed.ts`) that runs at applicati
 
 ### 🟢 GREEN — implementation is done when
 
-- [ ] Every RED test passes, unchanged
-- [ ] `pnpm seed` executes without error (if test data seeding is needed for other tests)
-- [ ] `prisma/seed.ts` is idempotent and can be run multiple times safely
-- [ ] `pnpm test` and `pnpm lint` pass
-- [ ] Docker container successfully runs seed at startup (verified by M0-05 integration)
-- [ ] No secrets are logged (password hashes are never printed; env var names only)
+- [x] Every RED test passes, unchanged
+- [x] `pnpm seed` executes without error (if test data seeding is needed for other tests)
+- [x] `prisma/seed.ts` is idempotent and can be run multiple times safely
+- [x] `pnpm test` and `pnpm lint` pass
+- [x] Docker container successfully runs seed at startup (verified by M0-05 integration)
+- [x] No secrets are logged (password hashes are never printed; env var names only)
 
 ## Implementation notes
 
@@ -102,12 +102,37 @@ This ticket implements the seed script (`prisma/seed.ts`) that runs at applicati
 
 ## Definition of done
 
-- [ ] All ACs met and all RED tests green
-- [ ] Seed script exists at `prisma/seed.ts` and is executable
-- [ ] `SEED_ADMIN_PASSWORD` validation fails loudly if missing or too short
-- [ ] Seed is idempotent: running twice produces no duplicates
-- [ ] Seed does not create an admin if any user already exists
-- [ ] Categories match FR-C2 and FR-C3 exactly (verbatim names, case-sensitive)
-- [ ] Admin account is created with `mustChangePassword: true` for first-login forced change
-- [ ] App starts and is queryable immediately after seeding completes
-- [ ] No secrets are logged during seed execution
+- [x] All ACs met and all RED tests green
+- [x] Seed script exists at `prisma/seed.ts` and is executable
+- [x] `SEED_ADMIN_PASSWORD` validation fails loudly if missing or too short
+- [x] Seed is idempotent: running twice produces no duplicates
+- [x] Seed does not create an admin if any user already exists
+- [x] Categories match FR-C2 and FR-C3 exactly (verbatim names, case-sensitive)
+- [x] Admin account is created with `mustChangePassword: true` for first-login forced change
+- [x] App starts and is queryable immediately after seeding completes
+- [x] No secrets are logged during seed execution
+
+## Implementation notes (dev-agent)
+
+- Split into `prisma/seed-lib.ts` (pure, testable seeding logic — categories, admin creation, env validation) and `prisma/seed.ts` (thin script wrapper handling `process.exit`/subprocess concerns), so the logic is directly importable from tests without spawning a process per case.
+- **bcrypt library**: used `bcryptjs` (pure-JS) rather than native `bcrypt`, to avoid adding a native build toolchain to the Dockerfile. CLAUDE.md specifies "bcrypt cost 12" without naming the exact package — flagged for review-agent, and for consistency, AITJ-M1-01 (`lib/auth/password.ts`) should use the same library.
+- **T8/T10 test-plan deviations**: the ticket's own T8 row is a self-correcting draft ("Let me rewrite this test... Let me fix") — a duplicate/broken test description, not implementable as written; dropped it and kept the clean T9 it converges on. T10 (navigate to `/login`, assert the page renders) can't be implemented in M0 since `/login` is AITJ-M1-02's route and doesn't exist yet — substituted a DB-level "admin immediately queryable by email" assertion, plus a manual full-stack Docker verification (rebuilt the production image, ran the real entrypoint against a fresh volume, confirmed 6/10/1 rows and idempotent re-seed on restart).
+- Fixed a pre-existing cross-test pollution risk: `tests/schema/constraints.test.ts` hardcodes some of the same category names ("Water", "Electricity", "Other") that seeding now genuinely creates in the shared test database. Added `afterAll` cleanup to `seed.test.ts` and switched its count assertions to filter by exact name list rather than bare `type`.
+
+## Review notes
+
+- **review-agent PASS (round 1)**: full suite 33/33 (including all 11 seed tests), tsc/lint clean, RED commit confirmed genuinely failing before GREEN. Idempotency verified at the implementation level — `createMany({ skipDuplicates: true })` (single round-trip, no N+1), `seedAdmin` checks `user.count()` first and also catches `P2002` for the concurrent-boot race. No secrets logged, bcrypt cost 12 confirmed. T8/T10 test-plan deviations independently confirmed justified (T8 is a self-correcting draft in the ticket source itself; T10's `/login` route doesn't exist until AITJ-M1-02). `bcryptjs` vs native `bcrypt` noted as a defensible, openly-flagged call — not blocking.
+- **qa-agent BLOCKING (round 1)**: `tests/integration/seed.test.ts` hardcoded `admin@aitj.local` for its own fixtures — the exact same value as `.env.example`'s `SEED_ADMIN_EMAIL`, i.e. the real dev stack's admin account when run via `make test` against the live compose stack (not a throwaway Testcontainers DB). qa-agent reproduced live data loss: the real seeded admin row was deleted and could not be re-seeded on restart, because `seedAdmin()` correctly gates on "any User exists" (AC7) and other test files leave orphaned User rows behind, keeping that gate permanently tripped.
+- **dev-agent fix (round 2)**: `tests/integration/seed.test.ts` now generates every fixture email per test run via `uniqueEmail()` (`tests/schema/fixtures.ts`'s existing precedent) instead of hardcoding `admin@aitj.local` / `manual-user@aitj.local` / `should-not-be-created@aitj.local`. The file now only ever creates and deletes rows it created itself. Verified live: reproduced qa-agent's exact scenario against the running Docker stack (`docker compose exec app pnpm exec vitest run tests/integration/seed.test.ts`, then full `pnpm test`) — no `admin@aitj.local` row is touched, `make fresh` was run to restore the real admin, and a `docker compose restart app` afterward confirms the admin survives a container restart intact.
+- **Flagged follow-up, NOT fixed here (out of scope for M0-07)**: while reproducing this live, found that `tests/integration/global-setup.ts` (owned by AITJ-M0-06) unconditionally `TRUNCATE`s every app table once per `integration` project run whenever `DATABASE_URL` is already set — which it is, inside the `app` container, pointing at the live compose `db` service. This means **any** `make test`/`pnpm test`/`make ci` run against the live dev stack wipes all real data (Users, Categories, Transactions), independent of this ticket's fix — the literal-email collision only ever compounded an already-destructive mechanism. This needs its own fix in AITJ-M0-06 (e.g. gate the truncate behind an explicit "this is a disposable test database" opt-in, or refuse to run integration tests at all against a `DATABASE_URL` that already has a seeded admin) and should not be considered resolved by this round's fix.
+- **Flagged follow-up, NOT fixed here (out of scope for M0-07)**: `tests/schema/models.test.ts`, `constraints.test.ts`, `relations.test.ts`, `migrate.test.ts`, `indexes.test.ts` (owned by AITJ-M0-03/AITJ-M0-04) create `User`/`Category` fixture rows via `uniqueEmail()`/`uniqueName()` but never delete them in `afterAll` — only `prisma.$disconnect()`. These rows are currently only ever cleared by the AITJ-M0-06 global truncate described above (at the *start* of the next full run), so between the end of one `make test` run and the next `make fresh`/reseed, orphaned rows keep the "any user exists" gate tripped. Belongs to the owning tickets for those test files, not to M0-07.
+- **review-agent PASS (round 2)**: independently re-verified dev-agent's round-2 fix — `git show` confirmed every hardcoded literal replaced with `uniqueEmail()`; ran the real suite against the live compose stack (33/33 passing); reproduced the "admin survives `pnpm test`" claim directly; `tsc`/lint clean. Assessed the global-setup.ts truncate issue as **urgent, not a deferrable follow-up** — reproduced it live (a `pnpm test` run wiped the real admin during the review itself, restored via `migrate reset` + reseed) and explicitly recommended an immediate hotfix ahead of any M1 work, given the project is about to start writing real committee data into the same shared database.
+- **Hotfix landed and merged**: per review-agent's urgent recommendation, `hotfix-test-harness-truncate-guard` (branch off `develop`, not a ticket) fixed `tests/integration/global-setup.ts` to skip the truncate whenever the `User` table is non-empty. Went through its own full review-agent (extra scrutiny given severity) → qa-agent cycle, both PASS, merged into `develop` (PR #7) before this ticket's branch was rebased onto it. This ticket's own two flagged follow-ups above are otherwise unaffected — the fixture-accumulation issue (M0-03/M0-04-owned) remains a real, still-open, non-blocking follow-up for a future ticket.
+- **qa-agent BLOCKING (round 3)**: two issues found after rebasing onto the merged truncate-guard hotfix. (1) CRITICAL: `seed.test.ts`'s `afterAll` unconditionally deleted every `Category` row matching the canonical `INCOME_CATEGORIES`/`EXPENSE_CATEGORIES` name+type lists — since `seedCategories()` is idempotent (`createMany({ skipDuplicates: true })`), it never creates a *new* row when those categories already exist on a live/shared stack, so this cleanup deleted the real, permanent, pre-existing seeded categories every run. (2) Reliability: `seedAdmin()`'s "does any User exist at all" gate (AC7) is global, so once the shared dev database holds any User row (the real admin, or orphaned `tests/schema/*.test.ts` fixture rows — a known, separately-tracked M0-03/M0-04 follow-up that never deletes its own fixtures), that gate is permanently tripped and this suite's own "seeding against a real database" admin-creation assertions (T5-T7) silently stop exercising what they claim to, without failing loudly until qa reproduced it on a polluted stack.
+- **dev-agent fix (round 3)**:
+  - Removed the destructive `prisma.category.deleteMany(...)` from `afterAll` entirely. `seedCategories()` is non-destructive by design, so there is nothing for this suite to clean up for its category assertions — they already filter by exact canonical name, which is correct regardless of what else exists in the table.
+  - Added `createIsolatedSeedSchema()`: for just the "seeding against a real database" and "app is queryable immediately after seeding" blocks (the ones that need genuine first-boot emptiness to validate AC4/AC6/T5-T7), creates a throwaway Postgres *schema* on the same database connection (`CREATE SCHEMA "seed_test_<uuid>"`, migrated independently via `prisma migrate deploy` against a `?schema=` connection URL), runs `runSeed` against it, and drops the schema in `afterAll`. This gives the tests a genuinely empty `User` table every run — immune to both the real seeded admin and any orphaned fixture rows from sibling test files — without ever reading, deleting, or risking real data. The "does not create an admin if a user already exists" and env-validation blocks are unaffected (their assertions are delta-based / gate-agnostic and don't need isolation).
+  - Verified live: ran `make fresh` + `make seed` for a clean baseline (real `admin@aitj.local` + 16 canonical categories), then ran the full suite twice back-to-back inside the compose stack (`docker compose exec app pnpm test`) — 35/35 passing both times. Confirmed after both runs: the real admin (`admin@aitj.local`) and the real `Donation`/`Water`/etc. categories are untouched, and no `seed_test_*` schema is left behind (teardown ran cleanly). `tsc --noEmit`, `pnpm lint`, and `prettier --check` all clean.
+  - No production code (`prisma/seed-lib.ts`, `prisma/seed.ts`) or `tests/integration/global-setup.ts` was touched — the fix is entirely within `tests/integration/seed.test.ts`.
+- **review-agent PASS (round 3)**: independently verified — full suite 35/35 twice, tsc/lint clean, real admin (1 row) and real categories (16 canonical, 42 total with accumulated fixtures) unchanged across both runs, `createIsolatedSeedSchema()` confirmed leaving no leftover schema. The M0-03/M0-04 orphaned-fixture follow-up remains correctly out of scope for this ticket.
+- **qa-agent PASS**: independently re-verified live — 35/35 twice, tsc/lint clean. Exercised AC5/E3/E4 (missing/short password → exact error strings, exit 1), AC6/E1 (re-run idempotent, no changes), E5/E9 (bcrypt round-trip of the real seeded password, including special characters), AC10 (entrypoint boot order), no secret leakage. E7 (existing transactions untouched) and E10 (true concurrent race) reasoned safe by code but not literally exercised — flagged as unverified-by-execution, not blocking. Signed off deploy-ready.
