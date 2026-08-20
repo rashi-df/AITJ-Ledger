@@ -60,10 +60,10 @@ test:
 	docker compose exec app pnpm test
 
 test-unit:
-	docker compose exec app pnpm exec vitest run
+	docker compose exec app pnpm test:unit
 
 test-e2e:
-	docker compose exec app pnpm exec playwright test
+	docker compose exec app pnpm test:e2e
 
 ci: typecheck lint test
 

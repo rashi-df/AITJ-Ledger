@@ -5,7 +5,14 @@
 # runner stage later copies this stage's full node_modules verbatim so the
 # Prisma CLI and tsx (used to run migrations/seed at startup) are guaranteed
 # to be present without fighting pnpm's symlinked store during a pruned copy.
-FROM node:20-alpine AS deps
+#
+# Node 22, matching package.json's `engines.node`. AITJ-M0-06 needs this: on
+# Node 20 the pinned `testcontainers`/`undici` versions throw
+# `webidl.util.markAsUncloneable is not a function` the moment
+# Testcontainers talks to the Docker daemon over the mounted socket (see
+# docker-compose.yml), which breaks `make test`/`make ci` for every
+# integration test that starts a container.
+FROM node:22-alpine AS deps
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
@@ -22,7 +29,7 @@ RUN pnpm exec prisma generate
 RUN pnpm build
 
 # --- runner ------------------------------------------------------------------
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production

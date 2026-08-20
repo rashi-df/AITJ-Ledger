@@ -15,6 +15,20 @@ function startContainer(): Promise<StartedPostgreSqlContainer> {
 }
 
 export async function getDatabaseUrl(): Promise<string> {
+  // Inside the `app` container (i.e. when `make test`/`make ci` exec into
+  // it), `DATABASE_URL` already points at the compose stack's own `db`
+  // service. Testcontainers can't be used there: it would ask the host's
+  // Docker daemon (reachable, since it's only the socket that's shared) to
+  // publish a port that is only bound on the *host's* network namespace,
+  // which `app` cannot reach at `localhost:<port>` (AITJ-M0-06). Reusing
+  // the already-running Postgres 16 `db` service is the "or a disposable
+  // Docker container" alternative the harness ticket's AC3 explicitly
+  // allows for. On a developer's host or a CI runner (no `DATABASE_URL` in
+  // the environment) this still starts a fresh Testcontainers instance.
+  if (process.env.DATABASE_URL) {
+    return process.env.DATABASE_URL;
+  }
+
   const container = await startContainer();
   return container.getConnectionUri();
 }

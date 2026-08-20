@@ -2,9 +2,10 @@ import { describe, expect, test } from 'vitest';
 
 describe('example.test.ts', () => {
   test('should fail deliberately', () => {
-    // AITJ-M0-06 RED gate: deliberately wrong assertion, proving Vitest
-    // detects and reports a failure correctly. Corrected in the GREEN
-    // commit once the harness is proven capable of failing.
-    expect(1).toBe(2);
+    // Proves Vitest reports a plain assertion correctly. During the
+    // AITJ-M0-06 RED gate this assertion was deliberately wrong
+    // (`expect(1).toBe(2)`) to prove the runner detects a failure; it is
+    // corrected to a true assertion now that the harness is GREEN.
+    expect(1).toBe(1);
   });
 });
