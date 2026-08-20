@@ -37,6 +37,16 @@ describe('schema > constraints.test.ts', () => {
   });
 
   describe('case-insensitive uniqueness', () => {
+    test('old case-sensitive Category_name_type_key index is dropped', async () => {
+      const rows = await prisma.$queryRawUnsafe<{ indexname: string }[]>(
+        `SELECT indexname FROM pg_indexes WHERE tablename = 'Category'`,
+      );
+      const indexNames = rows.map((row) => row.indexname);
+
+      expect(indexNames).not.toContain('Category_name_type_key');
+      expect(indexNames).toContain('Category_name_type_lower_key');
+    });
+
     test('income "Other" + expense "Other" allowed', async () => {
       await createTestCategory(prisma, 'INCOME', { name: 'Other' });
       const expenseOther = await createTestCategory(prisma, 'EXPENSE', { name: 'Other' });

@@ -7,13 +7,17 @@
 
 -- 1. Case-insensitive uniqueness per type
 --
--- The Prisma-generated `Category_name_type_key` unique constraint is
+-- The Prisma-generated `Category_name_type_key` unique index is
 -- case-sensitive, which would allow "Water" and "water" to coexist as two
 -- expense categories. Replace it with a functional unique index on
 -- (LOWER(name), type) so uniqueness is case-insensitive within a type, while
 -- still allowing the same name to be used once per INCOME and once per
 -- EXPENSE (e.g. income "Other" and expense "Other").
-ALTER TABLE "Category" DROP CONSTRAINT IF EXISTS "Category_name_type_key";
+--
+-- Prisma's `@@unique([name, type])` is emitted as a bare unique index, not a
+-- table constraint, so it has no `pg_constraint` entry -- it must be dropped
+-- with DROP INDEX, not ALTER TABLE ... DROP CONSTRAINT.
+DROP INDEX IF EXISTS "Category_name_type_key";
 
 CREATE UNIQUE INDEX IF NOT EXISTS "Category_name_type_lower_key"
   ON "Category" (LOWER("name"), "type");
