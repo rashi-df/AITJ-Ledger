@@ -18,8 +18,13 @@ export interface AuthEnv {
  * error rather than letting NextAuth fail later with an opaque one.
  */
 export function assertAuthEnv(env: AuthEnv): { secret: string; url: string } {
-  // TODO(AITJ-M1-01): required-env validation not wired up yet.
-  return { secret: env.AUTH_SECRET ?? '', url: env.AUTH_URL ?? '' };
+  if (!env.AUTH_SECRET) {
+    throw new AuthConfigError('AUTH_SECRET is required');
+  }
+  if (!env.AUTH_URL) {
+    throw new AuthConfigError('AUTH_URL is required');
+  }
+  return { secret: env.AUTH_SECRET, url: env.AUTH_URL };
 }
 
 /**
@@ -90,15 +95,18 @@ export function buildAuthConfig(env: AuthEnv = process.env): NextAuthConfig {
         }
         return token;
       },
-      // TODO(AITJ-M1-01): still spreads the raw session user through —
-      // does not yet guard against a passwordHash (or similar secret)
-      // reaching the serialized session.
+      // Reconstructs the session's user object explicitly from known-safe
+      // fields rather than spreading the token — passwordHash (or any
+      // other field that should never leave the repository layer) can
+      // never leak through here even if something upstream misbehaves
+      // (T9, FR-A10).
       session({ session, token }) {
         return {
           ...session,
           user: {
-            ...session.user,
             id: typeof token.id === 'string' ? token.id : '',
+            name: session.user?.name ?? '',
+            email: session.user?.email ?? '',
           },
         };
       },

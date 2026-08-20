@@ -15,11 +15,11 @@ Auth.js v5 with a Credentials provider and JWT sessions is the authentication ba
 
 ## Acceptance criteria
 
-- [ ] AC1 — Auth.js v5 config initializes with Credentials provider, reading `AUTH_SECRET` and `AUTH_URL` from env
-- [ ] AC2 — Session cookie is httpOnly, secure, sameSite=lax, 7-day sliding window expiry
-- [ ] AC3 — Passwords are hashed with bcrypt cost 12; raw password never stored or returned
-- [ ] AC4 — `authedAction` wrapper asserts session before any Server Action executes
-- [ ] AC5 — (FR-A4) A user can log out from any page; the session is invalidated immediately and the cookie cleared
+- [x] AC1 — Auth.js v5 config initializes with Credentials provider, reading `AUTH_SECRET` and `AUTH_URL` from env
+- [x] AC2 — Session cookie is httpOnly, secure, sameSite=lax, 7-day sliding window expiry
+- [x] AC3 — Passwords are hashed with bcrypt cost 12; raw password never stored or returned
+- [x] AC4 — `authedAction` wrapper asserts session before any Server Action executes
+- [x] AC5 — (FR-A4) A user can log out from any page; the session is invalidated immediately and the cookie cleared
 
 ## Edge cases
 
@@ -54,9 +54,9 @@ Auth.js v5 with a Credentials provider and JWT sessions is the authentication ba
 
 ### 🟢 GREEN — implementation is done when
 
-- [ ] Every RED test passes, unchanged. Tests are not edited to fit the implementation.
-- [ ] `pnpm tsc --noEmit`, `pnpm lint`, `pnpm test` all clean.
-- [ ] No test is skipped, `.only`, or commented out.
+- [x] Every RED test passes, unchanged. Tests are not edited to fit the implementation.
+- [x] `pnpm tsc --noEmit`, `pnpm lint`, `pnpm test` all clean.
+- [x] No test is skipped, `.only`, or commented out.
 
 ## Implementation notes
 
@@ -82,14 +82,14 @@ Auth.js v5 with a Credentials provider and JWT sessions is the authentication ba
 
 ## Definition of done
 
-- [ ] All ACs met and all RED tests green
-- [ ] Server-side validation present (client validation alone is never sufficient — §7)
-- [ ] Every read filters `deletedAt: null` via the repository layer (§6.1) — N/A for this ticket
-- [ ] Mutation is atomic with its audit entry (NFR-2), if it mutates — N/A for this ticket
-- [ ] Session asserted via `authedAction` (§8.2), if it is an action — authedAction implemented
-- [ ] No N+1 queries — verified by query count or `include`/`select` inspection — N/A for this ticket
-- [ ] No unused variables, imports, or dead code
-- [ ] No secrets, amounts, passwords, or tokens in logs (NFR-8)
-- [ ] Responsive at 360px, tap targets ≥44px (NFR-3) — N/A for this ticket
-- [ ] Keyboard accessible, labelled controls, 4.5:1 contrast (NFR-4) — N/A for this ticket
+- [x] All ACs met and all RED tests green
+- [x] Server-side validation present (client validation alone is never sufficient — §7)
+- [x] Every read filters `deletedAt: null` via the repository layer (§6.1) — N/A for this ticket (User has no `deletedAt`)
+- [x] Mutation is atomic with its audit entry (NFR-2), if it mutates — N/A for this ticket
+- [x] Session asserted via `authedAction` (§8.2), if it is an action — authedAction implemented
+- [x] No N+1 queries — verified by query count or `include`/`select` inspection — N/A for this ticket
+- [x] No unused variables, imports, or dead code
+- [x] No secrets, amounts, passwords, or tokens in logs (NFR-8)
+- [x] Responsive at 360px, tap targets ≥44px (NFR-3) — N/A for this ticket
+- [x] Keyboard accessible, labelled controls, 4.5:1 contrast (NFR-4) — N/A for this ticket
 - [ ] Reviewed by review-agent → passed to qa-agent → QA signed off

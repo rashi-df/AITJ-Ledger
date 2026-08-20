@@ -45,11 +45,10 @@ export function authedAction<Args extends unknown[], Return>(
   getSession: GetSession = defaultGetSession,
 ): (...args: Args) => Promise<Return> {
   return async (...args: Args): Promise<Return> => {
-    // TODO(AITJ-M1-01): session gate not wired up correctly yet.
     const session = await getSession();
-    if (session) {
+    if (!session) {
       throw new AuthenticationError();
     }
-    return action(session as unknown as ActionSession, ...args);
+    return action(session, ...args);
   };
 }
