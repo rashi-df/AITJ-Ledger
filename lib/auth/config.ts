@@ -5,6 +5,15 @@ import { verifyPassword } from './password';
 
 const SEVEN_DAYS_IN_SECONDS = 7 * 24 * 60 * 60;
 
+// FR-A1/NFR-8: a fixed, valid bcrypt (cost 12) hash of a password nobody
+// will ever submit. When `findUserForLogin` finds no matching row,
+// `authorize()` still runs `verifyPassword` against this hash instead of
+// short-circuiting — otherwise the "no such email" path skips the ~100ms+
+// bcrypt compare that the "wrong password" path performs, and response
+// timing reveals whether an email is registered even though the returned
+// error message is generic either way.
+const DUMMY_PASSWORD_HASH = '$2b$12$4M6ZLf0gTl5QMWpT0xoW.u35MJuJ9rmSpdGso/W9OnoWCvVTj8twC';
+
 export class AuthConfigError extends Error {}
 
 export interface AuthEnv {
@@ -65,7 +74,10 @@ export function buildAuthConfig(env: AuthEnv = process.env): NextAuthConfig {
         },
         // FR-A1/FR-A10: any failure here — unknown email or wrong password
         // — returns null, so Auth.js reports the same generic error either
-        // way and never reveals whether the email exists.
+        // way and never reveals whether the email exists, by message OR by
+        // timing. `verifyPassword` always runs — against the real hash if
+        // the user was found, against `DUMMY_PASSWORD_HASH` otherwise — so
+        // the bcrypt cost is paid on every attempt.
         async authorize(credentials) {
           const email = typeof credentials?.email === 'string' ? credentials.email : undefined;
           const password =
@@ -75,12 +87,8 @@ export function buildAuthConfig(env: AuthEnv = process.env): NextAuthConfig {
           }
 
           const user = await findUserForLogin(email);
-          if (!user) {
-            return null;
-          }
-
-          const isValid = await verifyPassword(password, user.passwordHash);
-          if (!isValid) {
+          const isValid = await verifyPassword(password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+          if (!user || !isValid) {
             return null;
           }
 
