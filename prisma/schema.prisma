@@ -66,12 +66,18 @@ model Category {
 
   transactions Transaction[]
 
-  // Case-insensitive uniqueness enforced by a citext column or a
-  // functional unique index on (lower(name), type) via raw migration.
-  @@unique([name, type])
+  // Case-insensitive uniqueness per type is enforced by a raw-SQL
+  // migration (AITJ-M0-04) that replaces the naive @@unique([name, type])
+  // with a functional unique index on (LOWER(name), type). Prisma's schema
+  // language cannot express a functional index, so it is not declared here;
+  // see prisma/migrations/20260820050000_add_case_insensitive_unique_and_type_check.
   @@index([type, isArchived])
 }
 
+// Transaction.type must always equal the linked Category.type. Enforced by
+// a BEFORE INSERT OR UPDATE trigger (raw-SQL migration, AITJ-M0-04) since a
+// CHECK constraint cannot reference another table; see the migration in
+// prisma/migrations/20260820050000_add_case_insensitive_unique_and_type_check.
 model Transaction {
   id          String          @id @default(cuid())
   type        TransactionType

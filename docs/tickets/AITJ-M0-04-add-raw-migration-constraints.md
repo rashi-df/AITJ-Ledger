@@ -7,7 +7,7 @@
 | Blocks | AITJ-M0-07 |
 | PRD refs | §6.1, FR-C6 |
 | Est. | 1 day |
-| Phase | 🔴 RED |
+| Phase | 🟢 GREEN |
 
 ## Context
 
@@ -15,12 +15,12 @@ The Prisma schema (M0-03) defines `@@unique([name, type])` on the Category model
 
 ## Acceptance criteria
 
-- [ ] AC1 — A raw migration (`*.sql` file in `prisma/migrations/`) is created
-- [ ] AC2 — The migration drops the case-sensitive `@@unique([name, type])` index and creates a functional unique index on `(LOWER(name), type)` or uses PostgreSQL `citext` extension
-- [ ] AC3 — A check constraint on Transaction ensures `type = category.type` (read from the joined category row or enforced via a trigger)
-- [ ] AC4 — The migration is idempotent: running it twice does not error
-- [ ] AC5 — Existing data (empty at this stage) passes the check constraint
-- [ ] AC6 — Category names are now unique case-insensitively per type
+- [x] AC1 — A raw migration (`*.sql` file in `prisma/migrations/`) is created
+- [x] AC2 — The migration drops the case-sensitive `@@unique([name, type])` index and creates a functional unique index on `(LOWER(name), type)` or uses PostgreSQL `citext` extension
+- [x] AC3 — A check constraint on Transaction ensures `type = category.type` (read from the joined category row or enforced via a trigger)
+- [x] AC4 — The migration is idempotent: running it twice does not error
+- [x] AC5 — Existing data (empty at this stage) passes the check constraint
+- [x] AC6 — Category names are now unique case-insensitively per type
 
 ## Edge cases
 
@@ -50,11 +50,11 @@ The Prisma schema (M0-03) defines `@@unique([name, type])` on the Category model
 
 ### 🟢 GREEN — implementation is done when
 
-- [ ] Every RED test passes, unchanged
-- [ ] `prisma migrate deploy` applies the migration without errors
-- [ ] `pnpm tsc --noEmit` and `pnpm lint` pass
-- [ ] No existing data is lost (currently empty, but the operation should be reversible in principle)
-- [ ] The migration is idempotent and can be re-run safely
+- [x] Every RED test passes, unchanged
+- [x] `prisma migrate deploy` applies the migration without errors
+- [x] `pnpm tsc --noEmit` and `pnpm lint` pass
+- [x] No existing data is lost (currently empty, but the operation should be reversible in principle)
+- [x] The migration is idempotent and can be re-run safely
 
 ## Implementation notes
 
@@ -84,8 +84,8 @@ The Prisma schema (M0-03) defines `@@unique([name, type])` on the Category model
 
 ## Definition of done
 
-- [ ] All ACs met and all RED tests green
-- [ ] Migration file exists in `prisma/migrations/`
-- [ ] `prisma migrate deploy` applies it without error
-- [ ] Both case-insensitive uniqueness and type check constraints are enforced at the database level
-- [ ] Idempotency confirmed: running the migration twice succeeds
+- [x] All ACs met and all RED tests green
+- [x] Migration file exists in `prisma/migrations/`
+- [x] `prisma migrate deploy` applies it without error
+- [x] Both case-insensitive uniqueness and type check constraints are enforced at the database level
+- [x] Idempotency confirmed: running the migration twice succeeds
