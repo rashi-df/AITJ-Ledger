@@ -7,7 +7,7 @@
 | Blocks | AITJ-M0-07 |
 | PRD refs | §6.1, FR-C6 |
 | Est. | 1 day |
-| Phase | 🔴 RED |
+| Phase | 🟢 GREEN |
 
 ## Context
 
@@ -15,12 +15,12 @@ The Prisma schema (M0-03) defines `@@unique([name, type])` on the Category model
 
 ## Acceptance criteria
 
-- [ ] AC1 — A raw migration (`*.sql` file in `prisma/migrations/`) is created
-- [ ] AC2 — The migration drops the case-sensitive `@@unique([name, type])` index and creates a functional unique index on `(LOWER(name), type)` or uses PostgreSQL `citext` extension
-- [ ] AC3 — A check constraint on Transaction ensures `type = category.type` (read from the joined category row or enforced via a trigger)
-- [ ] AC4 — The migration is idempotent: running it twice does not error
-- [ ] AC5 — Existing data (empty at this stage) passes the check constraint
-- [ ] AC6 — Category names are now unique case-insensitively per type
+- [x] AC1 — A raw migration (`*.sql` file in `prisma/migrations/`) is created
+- [x] AC2 — The migration drops the case-sensitive `@@unique([name, type])` index and creates a functional unique index on `(LOWER(name), type)` or uses PostgreSQL `citext` extension
+- [x] AC3 — A check constraint on Transaction ensures `type = category.type` (read from the joined category row or enforced via a trigger)
+- [x] AC4 — The migration is idempotent: running it twice does not error
+- [x] AC5 — Existing data (empty at this stage) passes the check constraint
+- [x] AC6 — Category names are now unique case-insensitively per type
 
 ## Edge cases
 
@@ -50,11 +50,11 @@ The Prisma schema (M0-03) defines `@@unique([name, type])` on the Category model
 
 ### 🟢 GREEN — implementation is done when
 
-- [ ] Every RED test passes, unchanged
-- [ ] `prisma migrate deploy` applies the migration without errors
-- [ ] `pnpm tsc --noEmit` and `pnpm lint` pass
-- [ ] No existing data is lost (currently empty, but the operation should be reversible in principle)
-- [ ] The migration is idempotent and can be re-run safely
+- [x] Every RED test passes, unchanged
+- [x] `prisma migrate deploy` applies the migration without errors
+- [x] `pnpm tsc --noEmit` and `pnpm lint` pass
+- [x] No existing data is lost (currently empty, but the operation should be reversible in principle)
+- [x] The migration is idempotent and can be re-run safely
 
 ## Implementation notes
 
@@ -84,8 +84,14 @@ The Prisma schema (M0-03) defines `@@unique([name, type])` on the Category model
 
 ## Definition of done
 
-- [ ] All ACs met and all RED tests green
-- [ ] Migration file exists in `prisma/migrations/`
-- [ ] `prisma migrate deploy` applies it without error
-- [ ] Both case-insensitive uniqueness and type check constraints are enforced at the database level
-- [ ] Idempotency confirmed: running the migration twice succeeds
+- [x] All ACs met and all RED tests green
+- [x] Migration file exists in `prisma/migrations/`
+- [x] `prisma migrate deploy` applies it without error
+- [x] Both case-insensitive uniqueness and type check constraints are enforced at the database level
+- [x] Idempotency confirmed: running the migration twice succeeds
+
+## Review notes
+
+- **review-agent REJECT (round 1)**: `DROP CONSTRAINT IF EXISTS "Category_name_type_key"` was a no-op — Prisma's M0-03 `@@unique([name, type])` was emitted as a bare `CREATE UNIQUE INDEX`, not a table constraint, so it has no `pg_constraint` entry and the drop silently did nothing. The old case-sensitive index survived alongside the new functional one, and no test caught it. Fixed in `453add2`: `DROP INDEX IF EXISTS` instead, plus a new regression test asserting `Category_name_type_key` is absent from `pg_indexes` post-migration.
+- **review-agent PASS (round 2)**: fix verified — migration read line-by-line, all statements idempotent (`DROP INDEX IF EXISTS`, `CREATE UNIQUE INDEX IF NOT EXISTS`, `CREATE OR REPLACE FUNCTION`, `DROP TRIGGER IF EXISTS` before `CREATE TRIGGER`). Full suite 18/18 passing against real Postgres 16, `tsc`/`lint` clean. Type-consistency trigger (not a CHECK constraint, since Postgres CHECK can't reference another table) confirmed correct. No app/repository code exists yet at this stage, so N+1/data-leak/Server Action rules are correctly out of scope.
+- **qa-agent PASS**: all 6 ACs and 6 edge cases independently re-verified against a live Testcontainers Postgres 16 (ad hoc Prisma calls, not just the checked-in tests). Idempotency confirmed at the raw-SQL level (`psql -f` re-run twice directly), not just via Prisma's migration-tracking. Cross-ticket consistency N/A — no app code exists yet to check against. Signed off deploy-ready.

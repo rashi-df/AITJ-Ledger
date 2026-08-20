@@ -37,6 +37,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # pnpm's build-script cache can skip re-running @prisma/client's
+      # postinstall hook (it keys on package+script identity, not on
+      # schema.prisma content), silently leaving a stale or ungenerated
+      # client. Generate explicitly so this step never depends on that cache.
+      - name: Generate Prisma Client
+        run: pnpm exec prisma generate
+
       - name: Typecheck
         run: pnpm exec tsc --noEmit
 
