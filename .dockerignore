@@ -5,7 +5,6 @@ node_modules
 .husky
 .env
 .env.*
-!.env.local.example
 .DS_Store
 .code-review-graph
 coverage

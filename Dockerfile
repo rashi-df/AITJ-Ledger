@@ -37,12 +37,20 @@ ENV PORT=3000
 
 # curl is required by the Docker healthcheck below; corepack provides the
 # pnpm binary used by `make` targets that exec into this container (tsc,
-# eslint, vitest, playwright). `corepack prepare --activate` fetches and
-# pins the pnpm version at build time so no network call is needed later,
-# at container-exec time, to resolve it.
-RUN apk add --no-cache curl && corepack enable && corepack prepare pnpm@9.15.9 --activate
+# eslint, vitest, playwright).
+RUN apk add --no-cache curl && corepack enable
 
-RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
+RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001 -G nodejs
+
+# Corepack's default cache lives under $HOME/.cache, which for root is
+# /root — mode 0700, unreadable by the nextjs user (uid 1001) that actually
+# runs `docker compose exec app pnpm ...` at exec time. Point COREPACK_HOME
+# at a directory nextjs owns before pinning the version, so the download
+# happens once at build time and every later exec reads the same cache
+# instead of silently re-fetching pnpm from registry.npmjs.org.
+ENV COREPACK_HOME=/home/nextjs/.cache/node/corepack
+RUN mkdir -p /home/nextjs/.cache && chown -R nextjs:nodejs /home/nextjs
+RUN corepack prepare pnpm@9.15.9 --activate
 
 # `make lint`/`make typecheck`/`make test` exec into this same running
 # container (CLAUDE.md's no-host-tooling rule), so it needs the full repo —
