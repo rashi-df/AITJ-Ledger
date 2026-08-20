@@ -1,9 +1,8 @@
-// Placeholder Prisma schema.
+// Prisma schema — AITJ Ledger
 //
-// The full data model (User, Invite, Category, Transaction, AuditLog,
-// AppSetting) is defined in AITJ-M0-03 per PRD §6. This file exists so the
-// `prisma/` directory structure required by §8.2 is in place; do not add
-// models here.
+// Data model defined in PRD §6. All models, fields, indexes, and
+// relationships are reproduced exactly as specified there. Do not add
+// fields or models that are not in the PRD.
 
 generator client {
   provider = "prisma-client-js"
@@ -12,4 +11,111 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  RESTORE
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  name               String
+  email              String   @unique
+  passwordHash       String
+  isActive           Boolean  @default(true)
+  mustChangePassword Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  createdTransactions Transaction[] @relation("createdBy")
+  updatedTransactions Transaction[] @relation("updatedBy")
+  deletedTransactions Transaction[] @relation("deletedBy")
+  invitesSent         Invite[]      @relation("invitedBy")
+  auditLogs           AuditLog[]
+}
+
+model Invite {
+  id          String    @id @default(cuid())
+  email       String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  invitedById String
+  invitedBy   User      @relation("invitedBy", fields: [invitedById], references: [id])
+  createdAt   DateTime  @default(now())
+
+  @@index([email])
+}
+
+model Category {
+  id         String          @id @default(cuid())
+  name       String
+  type       TransactionType
+  isArchived Boolean         @default(false)
+  sortOrder  Int             @default(0)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  transactions Transaction[]
+
+  // Case-insensitive uniqueness enforced by a citext column or a
+  // functional unique index on (lower(name), type) via raw migration.
+  @@unique([name, type])
+  @@index([type, isArchived])
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  type        TransactionType
+  amount      Decimal         @db.Decimal(14, 2)
+  occurredOn  DateTime        @db.Date
+  description String?         @db.VarChar(500)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  createdById String
+  createdBy   User    @relation("createdBy", fields: [createdById], references: [id])
+  updatedById String?
+  updatedBy   User?   @relation("updatedBy", fields: [updatedById], references: [id])
+
+  deletedAt   DateTime?
+  deletedById String?
+  deletedBy   User?     @relation("deletedBy", fields: [deletedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([deletedAt, occurredOn(sort: Desc)])
+  @@index([deletedAt, type, occurredOn])
+  @@index([deletedAt, categoryId])
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  entityType String // "Transaction" | "Category" | "User"
+  entityId   String
+  action     AuditAction
+  actorId    String
+  actor      User        @relation(fields: [actorId], references: [id])
+  before     Json?
+  after      Json?
+  createdAt  DateTime    @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt(sort: Desc)])
+}
+
+model AppSetting {
+  key       String   @id // e.g. "masjidName"
+  value     String
+  updatedAt DateTime @updatedAt
 }
