@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { copyFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
@@ -8,8 +9,21 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 // container.
 const repoRoot = path.resolve(__dirname, '..', '..');
 
+// `docker compose` only auto-loads a file literally named `.env` in the
+// project root (never `.env.local`). A fresh checkout has no `.env` — seed
+// it from the committed `.env.example` so the suite is reproducible without
+// any manual local setup.
+function ensureEnvFile(): void {
+  const envPath = path.join(repoRoot, '.env');
+  const examplePath = path.join(repoRoot, '.env.example');
+  if (!existsSync(envPath)) {
+    copyFileSync(examplePath, envPath);
+  }
+}
+
 describe('make > make ci', () => {
   beforeAll(() => {
+    ensureEnvFile();
     execSync('docker compose -f docker-compose.yml up -d --build', {
       cwd: repoRoot,
       timeout: 600_000,

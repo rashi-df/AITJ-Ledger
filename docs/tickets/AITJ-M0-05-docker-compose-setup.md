@@ -11,7 +11,7 @@
 
 ## Context
 
-This ticket creates `docker-compose.yml` with two services: the Next.js app and a PostgreSQL 16 database. Both services must be healthy and communicable. Migrations and seeding run at app startup. Environment variables (§12.2) are passed via `.env.local` (development) or injected at deployment. No secrets are hardcoded (NFR-5).
+This ticket creates `docker-compose.yml` with two services: the Next.js app and a PostgreSQL 16 database. Both services must be healthy and communicable. Migrations and seeding run at app startup. Environment variables (§12.2) are passed via `.env` (development, copied from the committed `.env.example`; `docker compose` only auto-loads a file literally named `.env`) or injected at deployment. No secrets are hardcoded (NFR-5).
 
 This ticket also delivers the root `Makefile` — the single documented entry point for every command in this project. `CLAUDE.md` states that node, pnpm, prisma, vitest and playwright are never run on the host: the Makefile is what makes that true, by wrapping each target in `docker compose exec app`. Until this ticket is GREEN those targets do not exist, so tickets AITJ-M0-02 through AITJ-M0-04 necessarily run their tooling on the host.
 
@@ -24,7 +24,7 @@ This ticket also delivers the root `Makefile` — the single documented entry po
 - [x] AC5 — The app service runs as a non-root user (e.g., `nextjs`)
 - [x] AC6 — The app service has a healthcheck using `curl http://localhost:3000/api/health` (or similar)
 - [x] AC7 — The app service waits for the `db` service to be healthy before starting
-- [x] AC8 — Environment variables are passed via an `.env.local` file or injected; `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `NODE_ENV`, `TZ` are configurable
+- [x] AC8 — Environment variables are passed via an `.env` file (copied from `.env.example`) or injected; `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `NODE_ENV`, `TZ` are configurable
 - [x] AC9 — Database migrations run automatically at app startup (`prisma migrate deploy`)
 - [x] AC10 — Database seeding runs automatically at app startup (`node prisma/seed.js` or similar)
 - [x] AC11 — A `docker-compose.dev.yml` override file provides hot reload (e.g., `next dev` instead of `next start`) and exposes the database port for local debugging
@@ -42,7 +42,7 @@ This ticket also delivers the root `Makefile` — the single documented entry po
 
 | # | Case | Expected behaviour |
 |---|---|---|
-| E1 | `.env.local` is missing | Docker compose fails with a clear error mentioning required variables, or uses defaults for optional ones |
+| E1 | `.env` is missing | Docker compose fails with a clear error mentioning required variables, or uses defaults for optional ones |
 | E2 | `DATABASE_URL` is invalid (bad connection string) | App container fails to start; logs indicate connection failure |
 | E3 | Database container fails to start | App container waits for health check to pass; if it times out, app fails to start |
 | E4 | Database schema is out of date | `prisma migrate deploy` updates it at startup without manual intervention |
@@ -99,7 +99,7 @@ This ticket also delivers the root `Makefile` — the single documented entry po
   - `app` service: use `next dev` for hot reload, mount source code as a volume
   - `db` service: expose port 5432 for local debugging
 - Create `.dockerignore` excluding node_modules, .next, .git, .env*, .DS_Store
-- Create an `.env.local.example` file documenting required variables (for reference; not committed to git in some repos)
+- Create an `.env.example` file documenting required variables, committed to git; developers run `cp .env.example .env` (docker compose only auto-loads a file literally named `.env`, never `.env.local`)
 - In the Dockerfile, run `prisma migrate deploy` and the seed script before starting the app server
 - Do not hardcode `DATABASE_URL`, `AUTH_SECRET`, or any secret in the Dockerfile; source them from environment variables passed at runtime
 - Create the root `Makefile` mirroring the command table in `CLAUDE.md` exactly — that table is the contract, so target names must not drift from it:

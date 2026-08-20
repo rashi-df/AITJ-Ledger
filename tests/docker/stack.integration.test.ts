@@ -1,4 +1,5 @@
 import { execFileSync, execSync } from 'node:child_process';
+import { copyFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
@@ -7,6 +8,18 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 // checks to go green can take a couple of minutes on a cold cache.
 const repoRoot = path.resolve(__dirname, '..', '..');
 const COMPOSE = ['compose', '-f', 'docker-compose.yml'];
+
+// `docker compose` only auto-loads a file literally named `.env` in the
+// project root (never `.env.local`). A fresh checkout has no `.env` — seed
+// it from the committed `.env.example` so the suite is reproducible without
+// any manual local setup.
+function ensureEnvFile(): void {
+  const envPath = path.join(repoRoot, '.env');
+  const examplePath = path.join(repoRoot, '.env.example');
+  if (!existsSync(envPath)) {
+    copyFileSync(examplePath, envPath);
+  }
+}
 
 function compose(args: string[], opts: { timeout?: number } = {}): string {
   return execFileSync('docker', [...COMPOSE, ...args], {
@@ -39,6 +52,7 @@ function waitForHealthy(service: string, timeoutMs: number): void {
 
 describe('docker > stack integration', () => {
   beforeAll(() => {
+    ensureEnvFile();
     compose(['up', '-d', '--build'], { timeout: 600_000 });
   }, 600_000);
 
