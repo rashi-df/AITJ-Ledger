@@ -14,7 +14,11 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "echo \"no test runner configured yet (see AITJ-M0-06)\" && exit 0",
+    "seed": "tsx prisma/seed.ts",
     "prepare": "husky"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "keywords": [],
   "author": "",
@@ -44,6 +48,7 @@
     "tailwindcss": "3",
     "tailwindcss-animate": "^1.0.7",
     "testcontainers": "^12.1.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8",
     "vitest": "^4.1.11"
