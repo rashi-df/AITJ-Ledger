@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { PrismaClient } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { getDatabaseUrl, runMigrateDeploy } from '../schema/container';
+import { uniqueEmail } from '../schema/fixtures';
 import {
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
@@ -13,9 +14,25 @@ import {
 // AITJ-M0-07. All tests share one migrated database (see tests/schema
 // pattern) — the `integration` Vitest project runs serialized
 // (`fileParallelism: false`, `isolate: false`), so this is safe.
+//
+// IMPORTANT: `getDatabaseUrl()` returns the *real* running Postgres
+// instance when this suite executes inside the `app` container (i.e.
+// `make test`) — it is not always a disposable Testcontainers database
+// (see tests/schema/container.ts). Never hardcode `admin@aitj.local` (or
+// any other literal that collides with `.env.example`'s
+// `SEED_ADMIN_EMAIL`) here: doing so previously deleted the real seeded
+// admin from a running dev stack and made it unrecoverable, because
+// `seedAdmin()` gates admin creation on "does any User exist at all"
+// (AC7). Every fixture email in this file must be generated per test run
+// via `uniqueEmail()`, matching tests/schema/fixtures.ts's precedent, so
+// this suite only ever creates and deletes rows it created itself.
 describe('seed.test.ts', () => {
   let prisma: PrismaClient;
   let databaseUrl: string;
+  const adminEmail = uniqueEmail();
+  const manualEmail = uniqueEmail();
+  const notCreatedEmail = uniqueEmail();
+  const validationEmail = uniqueEmail();
 
   beforeAll(async () => {
     databaseUrl = await getDatabaseUrl();
@@ -34,7 +51,7 @@ describe('seed.test.ts', () => {
     await prisma.user.deleteMany({
       where: {
         email: {
-          in: ['admin@aitj.local', 'manual-user@aitj.local', 'should-not-be-created@aitj.local'],
+          in: [adminEmail, manualEmail, notCreatedEmail],
         },
       },
     });
@@ -65,7 +82,7 @@ describe('seed.test.ts', () => {
         ...process.env,
         DATABASE_URL: databaseUrl,
         SEED_ADMIN_PASSWORD: '',
-        SEED_ADMIN_EMAIL: 'admin@aitj.local',
+        SEED_ADMIN_EMAIL: validationEmail,
       };
 
       let stderr = '';
@@ -86,7 +103,7 @@ describe('seed.test.ts', () => {
       const env = {
         ...process.env,
         DATABASE_URL: databaseUrl,
-        SEED_ADMIN_EMAIL: 'admin@aitj.local',
+        SEED_ADMIN_EMAIL: validationEmail,
         SEED_ADMIN_PASSWORD: 'ShortPwd',
       };
 
@@ -105,14 +122,13 @@ describe('seed.test.ts', () => {
     });
 
     test('validateAdminEnv throws SeedConfigError for missing password', () => {
-      expect(() => validateAdminEnv({ SEED_ADMIN_EMAIL: 'admin@aitj.local' })).toThrow(
+      expect(() => validateAdminEnv({ SEED_ADMIN_EMAIL: validationEmail })).toThrow(
         SeedConfigError,
       );
     });
   });
 
   describe('seeding against a real database', () => {
-    const adminEmail = 'admin@aitj.local';
     const adminPassword = 'Correct10CharPwd';
 
     beforeAll(async () => {
@@ -209,7 +225,6 @@ describe('seed.test.ts', () => {
 
   describe('does not create an admin if a user already exists', () => {
     test('seed does not create an admin when a non-admin user already exists', async () => {
-      const manualEmail = 'manual-user@aitj.local';
       await prisma.user.create({
         data: {
           name: 'Manually Created User',
@@ -221,13 +236,13 @@ describe('seed.test.ts', () => {
       const usersBefore = await prisma.user.count();
 
       await runSeed(prisma, {
-        SEED_ADMIN_EMAIL: 'should-not-be-created@aitj.local',
+        SEED_ADMIN_EMAIL: notCreatedEmail,
         SEED_ADMIN_PASSWORD: 'Correct10CharPwd',
       });
 
       const usersAfter = await prisma.user.count();
       const notCreated = await prisma.user.findUnique({
-        where: { email: 'should-not-be-created@aitj.local' },
+        where: { email: notCreatedEmail },
       });
       const manualStillThere = await prisma.user.findUnique({ where: { email: manualEmail } });
 
@@ -248,7 +263,7 @@ describe('seed.test.ts', () => {
     // server itself boots against this same seeded database.
     test('seeded admin is immediately queryable by email for login', async () => {
       const admin = await prisma.user.findUnique({
-        where: { email: 'admin@aitj.local' },
+        where: { email: adminEmail },
         select: { id: true, email: true, passwordHash: true, isActive: true },
       });
 
