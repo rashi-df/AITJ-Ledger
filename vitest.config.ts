@@ -22,6 +22,10 @@ export default defineConfig({
           include: ['tests/unit/**/*.test.ts'],
           environment: 'node',
           sequence: { groupOrder: 0 },
+          // AITJ-M1-01: see the identical setting below for why `next`
+          // must be inlined wherever a test (transitively) imports
+          // next-auth.
+          server: { deps: { inline: ['next'] } },
         },
       },
       {
@@ -36,6 +40,13 @@ export default defineConfig({
           isolate: false,
           sequence: { groupOrder: 1 },
           globalSetup: ['tests/integration/global-setup.ts'],
+          // AITJ-M1-01: next-auth's `lib/env.js` imports the bare
+          // specifier `next/server`, which Next.js's own bundlers resolve
+          // via a custom condition but Vite's default resolver cannot
+          // (nextauthjs/next-auth#12280). Inlining `next` makes Vite
+          // process it (and its subpath imports) as source instead of an
+          // externalized dependency, which resolves correctly.
+          server: { deps: { inline: ['next'] } },
         },
       },
     ],
