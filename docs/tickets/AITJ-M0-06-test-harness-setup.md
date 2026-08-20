@@ -7,7 +7,7 @@
 | Blocks | AITJ-M0-07, M1–M8 |
 | PRD refs | §13, NFR-1 |
 | Est. | 1.5 days |
-| Phase | 🔴 RED |
+| Phase | 🟢 GREEN |
 
 ## Context
 
@@ -107,3 +107,11 @@ This ticket wires up the complete test harness: Vitest for unit and integration 
 - [x] E2E tests can run at 360px and desktop viewports without errors
 - [x] Testcontainers PostgreSQL starts automatically for integration tests
 - [x] All test configuration is externalized (vitest.config.ts, playwright.config.ts, not hardcoded)
+
+## Review notes
+
+- **review-agent REJECT (round 1)**: no separate RED commit existed (tests + implementation landed in one commit, undermining the audit trail), and `pnpm test:e2e` didn't actually run through the mandated `docker compose exec app` path — Playwright's bundled Chromium is glibc-only and can't run on the Alpine runner image no matter what's installed alongside it. AC5/6/7/10 and the e2e DoD lines were false as checked.
+- **Fix round 1**: split into a genuine RED commit (`419ae55`, all six tests deliberately failing on wrong assertions, not import errors) then GREEN (`af30605`). Switched the Dockerfile from `node:22-alpine` to `node:22-bookworm-slim` (Debian/glibc) and installed Playwright's browsers as root before dropping to `nextjs` (`cb56865`) — verified `make test-e2e` passing for real inside the container.
+- **review-agent REJECT (round 2)**: two new findings — (1) `pnpm test`/`make ci` wasn't idempotent inside the app container: tests reuse the persistent compose `db` service with no cleanup between runs, so a second consecutive run without `make fresh` failed on unique-constraint violations; (2) dev-agent had prematurely flipped this ticket to 🟢 GREEN before any review/QA sign-off, violating the pipeline rule.
+- **Fix round 2**: added `tests/integration/global-setup.ts` — truncates all app tables once before the integration project runs, only when `DATABASE_URL` is pre-set (the compose-reuse case); a no-op for a fresh Testcontainers run, which starts empty anyway. Verified 3 consecutive `pnpm test` runs pass with no `make fresh` in between. Reverted the premature Phase flip back to 🔴 RED (`855c00b`).
+- **review-agent PASS (round 3)**: full suite passes twice back-to-back (idempotent), e2e 4/4, tsc/lint clean. Independently verified the harness actually detects a failure by dropping in a deliberately-broken test and confirming Vitest reports it correctly. Non-blocking notes carried forward: `mobile` Playwright project isn't full device emulation (viewport-only, no touch/UA) — acceptable for this ticket's ACs; E3 (Testcontainers startup failure surfacing a clear error) has no dedicated test, not in the mandatory T1–T6 plan.
