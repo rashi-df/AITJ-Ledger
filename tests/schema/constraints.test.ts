@@ -47,24 +47,40 @@ describe('schema > constraints.test.ts', () => {
       expect(indexNames).toContain('Category_name_type_lower_key');
     });
 
-    test('income "Other" + expense "Other" allowed', async () => {
-      await createTestCategory(prisma, 'INCOME', { name: 'Other' });
-      const expenseOther = await createTestCategory(prisma, 'EXPENSE', { name: 'Other' });
+    // Each name below is suffixed with a fresh random id (via uniqueName)
+    // rather than left as a bare literal. The real seed data (AITJ-M0-07)
+    // creates its own "Other"/"Water"/"Electricity" categories with these
+    // exact literal names, and this suite may run against the live
+    // Compose `db` service (see tests/integration/global-setup.ts's
+    // truncate guard) where that real data is present and must not be
+    // touched — a bare literal here would collide with it on the same
+    // case-insensitive (name, type) uniqueness this test is verifying.
+    // The suffix is lowercase hex from randomUUID, so it does not affect
+    // the case-sensitivity being tested.
 
-      expect(expenseOther.name).toBe('Other');
+    test('income "Other" + expense "Other" allowed', async () => {
+      const name = uniqueName('Other');
+      await createTestCategory(prisma, 'INCOME', { name });
+      const expenseOther = await createTestCategory(prisma, 'EXPENSE', { name });
+
+      expect(expenseOther.name).toBe(name);
     });
 
     test('expense "Water" then "water" rejected', async () => {
-      await createTestCategory(prisma, 'EXPENSE', { name: 'Water' });
+      const suffix = uniqueName('');
+      await createTestCategory(prisma, 'EXPENSE', { name: `Water${suffix}` });
 
-      await expect(createTestCategory(prisma, 'EXPENSE', { name: 'water' })).rejects.toThrow();
+      await expect(
+        createTestCategory(prisma, 'EXPENSE', { name: `water${suffix}` }),
+      ).rejects.toThrow();
     });
 
     test('expense "Electricity" then "ELECTRICITY" rejected', async () => {
-      await createTestCategory(prisma, 'EXPENSE', { name: 'Electricity' });
+      const suffix = uniqueName('');
+      await createTestCategory(prisma, 'EXPENSE', { name: `Electricity${suffix}` });
 
       await expect(
-        createTestCategory(prisma, 'EXPENSE', { name: 'ELECTRICITY' }),
+        createTestCategory(prisma, 'EXPENSE', { name: `ELECTRICITY${suffix}` }),
       ).rejects.toThrow();
     });
   });
