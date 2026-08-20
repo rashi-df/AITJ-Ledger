@@ -20,7 +20,7 @@ This ticket defines the Prisma schema (§6 of the PRD) — the complete data mod
 - [x] AC3 — All indexes from §6 are present (e.g., @@index on transactions for efficient queries)
 - [x] AC4 — Relations are correctly bidirectional and enforce referential integrity
 - [x] AC5 — `onDelete: Restrict` is applied to the Transaction → Category relation (FR-C7)
-- [x] AC6 — `Decimal(14,2)` is used for Transaction.amount, rejecting 3+ decimal places and storing ₹99,99,99,999.99 exactly
+- [x] AC6 — `Decimal(14,2)` is used for Transaction.amount, storing ₹99,99,99,999.99 exactly; scale beyond 2 decimal places is silently rounded by PostgreSQL (not rejected — max-2-dp rejection is application-level, per §7)
 - [x] AC7 — Transaction.occurredOn is `@db.Date` (no time component, per A5)
 - [x] AC8 — A migration file is generated and can be applied to a real PostgreSQL 16 database
 - [x] AC9 — `prisma db push` or `prisma migrate deploy` applies the schema without errors
@@ -32,7 +32,7 @@ This ticket defines the Prisma schema (§6 of the PRD) — the complete data mod
 |---|---|---|
 | E1 | Attempt to insert a Transaction with an amount of 0 | Database allows it (validation is application-level, per §7); a later M1 validator rejects it |
 | E2 | Insert 1234567.89 into amount (DECIMAL(14,2)) | Database stores exactly `1234567.89`; fetching via Prisma returns `Decimal('1234567.89')` |
-| E3 | Attempt to insert 1234567.999 into amount | Database rejects (more than 2 decimal places) |
+| E3 | Attempt to insert 1234567.999 into amount | Database silently rounds to `1234568.00` (`NUMERIC(14,2)` truncates excess scale, it does not raise an error); rejecting 3+ decimal places is application-level, per §7 — a later M1 validation ticket must reject this input before it reaches the database |
 | E4 | Insert a date in the future (e.g. 2027-08-19) into occurredOn | Database allows it (per A7, future dates are allowed; UI warns) |
 | E5 | Attempt to delete a category in use by a transaction | Database rejects (onDelete: Restrict enforced at DB level) |
 | E6 | Multiple users create transactions in the same second | No conflict; createdAt is unique per row, indexed for efficiency |
