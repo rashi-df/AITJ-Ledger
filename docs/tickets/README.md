@@ -38,7 +38,7 @@ M1–M3 together form the vertical slice worth demoing to the client early (§14
 |---|---|---|---|
 | [AITJ-M1-01](AITJ-M1-01-authjs-credentials-jwt.md) | Configure Auth.js v5 with Credentials provider and JWT sessions | FR-A3, FR-A4, FR-A10, §8.2 | 🟢 GREEN |
 | [AITJ-M1-02](AITJ-M1-02-login-page-and-error.md) | Login page and generic authentication error | FR-A1, FR-A11, §10 | 🟢 GREEN |
-| [AITJ-M1-03](AITJ-M1-03-route-protection-and-redirect.md) | Route protection middleware and post-login redirect | FR-A2, NFR-7 | 🔴 RED |
+| [AITJ-M1-03](AITJ-M1-03-route-protection-and-redirect.md) | Route protection middleware and post-login redirect | FR-A2, NFR-7 | 🟢 GREEN |
 | [AITJ-M1-04](AITJ-M1-04-forced-password-change.md) | Forced password change for the seeded admin account | FR-A5, NFR-10 | 🔴 RED |
 | [AITJ-M1-05](AITJ-M1-05-generate-and-manage-invites.md) | Generate and manage user invites | FR-A6, §6 Invite model | 🔴 RED |
 | [AITJ-M1-06](AITJ-M1-06-accept-invite-set-name-password.md) | Accept an invite and set name and password | FR-A7, FR-A10, §6 Invite model, §10 | 🔴 RED |

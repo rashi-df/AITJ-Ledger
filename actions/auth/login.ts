@@ -3,7 +3,10 @@
 import { redirect } from 'next/navigation';
 import { evaluateLoginAttempt } from '../../lib/auth/loginAttempt';
 import { signIn } from '../../lib/auth/config';
+import { isValidRedirect } from '../../lib/auth/redirectValidation';
 import { loginSchema } from '../../lib/validation/auth';
+
+const DEFAULT_POST_LOGIN_DESTINATION = '/dashboard';
 
 export interface LoginActionResult {
   error?: string;
@@ -26,7 +29,11 @@ export interface LoginActionResult {
  * `cookies()` API `evaluateLoginAttempt` deliberately avoids depending on
  * (see lib/auth/loginAttempt.ts).
  */
-export async function loginAction(input: { email: string; password: string }): Promise<LoginActionResult> {
+export async function loginAction(input: {
+  email: string;
+  password: string;
+  redirectTo?: string;
+}): Promise<LoginActionResult> {
   const parsed = loginSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Invalid email or password' };
@@ -40,5 +47,17 @@ export async function loginAction(input: { email: string; password: string }): P
   }
 
   await signIn('credentials', { email, password, redirect: false });
-  redirect('/');
+
+  // FR-A2 (AC6/AC7): the `redirect` query param carries the destination
+  // the user was trying to reach before middleware.ts sent them here.
+  // Re-validated with the same `isValidRedirect` the middleware uses --
+  // never trust a value that only round-tripped through the client --
+  // and falls back to the dashboard both when it's missing (E8) and when
+  // it fails validation, which also covers the `/login` loop-prevention
+  // case (E9): `/login` is never on `isValidRedirect`'s allowlist.
+  const destination =
+    input.redirectTo && isValidRedirect(input.redirectTo)
+      ? input.redirectTo
+      : DEFAULT_POST_LOGIN_DESTINATION;
+  redirect(destination);
 }
