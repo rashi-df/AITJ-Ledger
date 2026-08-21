@@ -101,6 +101,7 @@ describe('authorize > constant-time auth failure (no email-existence timing leak
       name: 'Admin',
       email: 'admin@aitj.local',
       passwordHash: '$2b$12$4M6ZLf0gTl5QMWpT0xoW.u35MJuJ9rmSpdGso/W9OnoWCvVTj8twC',
+      mustChangePassword: false,
     });
     const verifyPasswordSpy = vi.mocked(passwordModule.verifyPassword);
     verifyPasswordSpy.mockClear();
@@ -129,6 +130,7 @@ describe('authorize > constant-time auth failure (no email-existence timing leak
       name: 'Admin',
       email: 'admin@aitj.local',
       passwordHash: '$2b$12$4M6ZLf0gTl5QMWpT0xoW.u35MJuJ9rmSpdGso/W9OnoWCvVTj8twC',
+      mustChangePassword: false,
     });
     verifyPasswordSpy.mockClear();
     await authorize({ email: 'admin@aitj.local', password: 'wrong-password-123' });

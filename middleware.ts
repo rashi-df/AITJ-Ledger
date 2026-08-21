@@ -3,6 +3,12 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { isValidRedirect } from './lib/auth/redirectValidation';
 
+// AITJ-M1-04 (FR-A5). The one protected route the forced-password-change
+// flow itself must stay reachable at, even while the flag is still set --
+// every other protected route redirects here instead of rendering (AC5,
+// AC6, E8).
+const FORCED_PASSWORD_CHANGE_PATH = '/settings/change-password';
+
 /**
  * Route protection (FR-A2, NFR-7). Guards the authenticated route group --
  * dashboard, income, expenses, transactions, reports, categories,
@@ -14,21 +20,29 @@ import { isValidRedirect } from './lib/auth/redirectValidation';
  * Auth.js API in lib/auth/config.ts: middleware runs on Next.js's Edge
  * runtime, which cannot load the Credentials provider's transitive
  * dependencies (bcryptjs, the Prisma client) -- `getToken` only decrypts
- * the JWT cookie with the shared secret, no provider code involved.
+ * the JWT cookie with the shared secret, no provider code involved. This
+ * also means the forced-password-change check below reads
+ * `token.mustChangePassword` straight off the already-decoded JWT -- no
+ * database round trip, so no N+1 on every protected-route request.
  */
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const token = await getToken({ req: request, secret: process.env.AUTH_SECRET });
-  if (token) {
-    return NextResponse.next();
+  const { pathname, search } = request.nextUrl;
+
+  if (!token) {
+    const destination = `${pathname}${search}`;
+    const loginUrl = new URL('/login', request.url);
+    if (isValidRedirect(destination)) {
+      loginUrl.searchParams.set('redirect', destination);
+    }
+    return NextResponse.redirect(loginUrl);
   }
 
-  const { pathname, search } = request.nextUrl;
-  const destination = `${pathname}${search}`;
-  const loginUrl = new URL('/login', request.url);
-  if (isValidRedirect(destination)) {
-    loginUrl.searchParams.set('redirect', destination);
+  if (token.mustChangePassword && pathname !== FORCED_PASSWORD_CHANGE_PATH) {
+    return NextResponse.redirect(new URL(FORCED_PASSWORD_CHANGE_PATH, request.url));
   }
-  return NextResponse.redirect(loginUrl);
+
+  return NextResponse.next();
 }
 
 export const config = {

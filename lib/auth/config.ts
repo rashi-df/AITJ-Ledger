@@ -82,9 +82,23 @@ export function buildAuthConfig(env: AuthEnv = process.env): NextAuthConfig {
       }),
     ],
     callbacks: {
-      jwt({ token, user }) {
+      // AITJ-M1-04 (FR-A5): `mustChangePassword` is carried into the JWT at
+      // sign-in from `authorize()`'s `VerifiedUser` (not re-read from the
+      // database on every request -- no N+1), and can be refreshed in place
+      // via `updateSession()` below (`trigger === 'update'`) once the
+      // forced-password-change Server Action clears the flag, without
+      // forcing the user to sign in again.
+      jwt({ token, user, trigger, session }) {
         if (user) {
           token.id = user.id;
+          token.mustChangePassword = user.mustChangePassword;
+        }
+        if (trigger === 'update' && session && typeof session === 'object') {
+          const updated = (session as { user?: { mustChangePassword?: unknown } }).user
+            ?.mustChangePassword;
+          if (typeof updated === 'boolean') {
+            token.mustChangePassword = updated;
+          }
         }
         return token;
       },
@@ -100,6 +114,7 @@ export function buildAuthConfig(env: AuthEnv = process.env): NextAuthConfig {
             id: typeof token.id === 'string' ? token.id : '',
             name: session.user?.name ?? '',
             email: session.user?.email ?? '',
+            mustChangePassword: token.mustChangePassword === true,
           },
         };
       },
@@ -160,4 +175,16 @@ export async function signOut(
   ...args: Parameters<NextAuthApi['signOut']>
 ): ReturnType<NextAuthApi['signOut']> {
   return getAuthApi().signOut(...args);
+}
+
+// AITJ-M1-04 (FR-A5, E6): lets a Server Action refresh the *current*
+// request's session cookie in place -- used by changePasswordForcedAction
+// to clear `mustChangePassword` on the JWT immediately after the database
+// write commits, so the very next request (including a second open tab,
+// once it re-reads its own cookie) sees the cleared flag without requiring
+// a fresh sign-in.
+export async function updateSession(
+  ...args: Parameters<NextAuthApi['unstable_update']>
+): ReturnType<NextAuthApi['unstable_update']> {
+  return getAuthApi().unstable_update(...args);
 }

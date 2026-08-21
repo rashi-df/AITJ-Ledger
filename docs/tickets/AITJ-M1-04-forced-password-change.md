@@ -7,7 +7,7 @@
 | Blocks | AITJ-M1-07, AITJ-M1-08 |
 | PRD refs | FR-A5, NFR-10 |
 | Est. | 1 day |
-| Phase | 🔴 RED |
+| Phase | 🟢 GREEN |
 
 ## Context
 
@@ -15,16 +15,16 @@ On first boot, if no user exists, an admin account is seeded from the `SEED_ADMI
 
 ## Acceptance criteria
 
-- [ ] AC1 — On first boot with no users in the database, `prisma/seed.ts` creates a user with email from `SEED_ADMIN_EMAIL` and password from `SEED_ADMIN_PASSWORD`
-- [ ] AC2 — Seeded user has `mustChangePassword = true` and `isActive = true`
-- [ ] AC3 — Seeded user exists in the database after a fresh deployment
-- [ ] AC4 — On first login with seeded credentials, login succeeds and user is redirected to /settings/change-password
-- [ ] AC5 — If a user with `mustChangePassword = true` attempts to access /dashboard or /income, they are redirected to /settings/change-password
-- [ ] AC6 — If a user with `mustChangePassword = true` attempts to access /settings, they are redirected to /settings/change-password
-- [ ] AC7 — Password change page is accessible with `mustChangePassword = true`
-- [ ] AC8 — After successful password change, `mustChangePassword` is cleared to false and user is redirected to /dashboard
-- [ ] AC9 — User can only change password via the forced-change flow (no other form allows it while the flag is set)
-- [ ] AC10 — Password change during this phase requires the new password but not the current password (seed account has no legitimate "current" password in the user's mind)
+- [x] AC1 — On first boot with no users in the database, `prisma/seed.ts` creates a user with email from `SEED_ADMIN_EMAIL` and password from `SEED_ADMIN_PASSWORD`
+- [x] AC2 — Seeded user has `mustChangePassword = true` and `isActive = true`
+- [x] AC3 — Seeded user exists in the database after a fresh deployment
+- [x] AC4 — On first login with seeded credentials, login succeeds and user is redirected to /settings/change-password
+- [x] AC5 — If a user with `mustChangePassword = true` attempts to access /dashboard or /income, they are redirected to /settings/change-password
+- [x] AC6 — If a user with `mustChangePassword = true` attempts to access /settings, they are redirected to /settings/change-password
+- [x] AC7 — Password change page is accessible with `mustChangePassword = true`
+- [x] AC8 — After successful password change, `mustChangePassword` is cleared to false and user is redirected to /dashboard
+- [x] AC9 — User can only change password via the forced-change flow (no other form allows it while the flag is set)
+- [x] AC10 — Password change during this phase requires the new password but not the current password (seed account has no legitimate "current" password in the user's mind)
 
 ## Edge cases
 
@@ -62,9 +62,9 @@ On first boot, if no user exists, an admin account is seeded from the `SEED_ADMI
 
 ### 🟢 GREEN — implementation is done when
 
-- [ ] Every RED test passes, unchanged. Tests are not edited to fit the implementation.
-- [ ] `pnpm tsc --noEmit`, `pnpm lint`, `pnpm test` all clean.
-- [ ] No test is skipped, `.only`, or commented out.
+- [x] Every RED test passes, unchanged. Tests are not edited to fit the implementation.
+- [x] `pnpm tsc --noEmit`, `pnpm lint`, `pnpm test` all clean.
+- [x] No test is skipped, `.only`, or commented out.
 
 ## Implementation notes
 
@@ -101,14 +101,21 @@ On first boot, if no user exists, an admin account is seeded from the `SEED_ADMI
 
 ## Definition of done
 
-- [ ] All ACs met and all RED tests green
-- [ ] Server-side validation present (client validation alone is never sufficient — §7)
-- [ ] Every read filters `deletedAt: null` via the repository layer (§6.1) — N/A for this ticket
-- [ ] Mutation is atomic with its audit entry (NFR-2), if it mutates — audit entry written for password change
-- [ ] Session asserted via `authedAction` (§8.2), if it is an action — changePasswordForcedAction uses authedAction
-- [ ] No N+1 queries — verified by query count or `include`/`select` inspection — session callback should not query again for mustChangePassword
-- [ ] No unused variables, imports, or dead code
-- [ ] No secrets, amounts, passwords, or tokens in logs (NFR-8)
-- [ ] Responsive at 360px, tap targets ≥44px (NFR-3)
-- [ ] Keyboard accessible, labelled controls, 4.5:1 contrast (NFR-4)
-- [ ] Reviewed by review-agent → passed to qa-agent → QA signed off
+- [x] All ACs met and all RED tests green
+- [x] Server-side validation present (client validation alone is never sufficient — §7)
+- [x] Every read filters `deletedAt: null` via the repository layer (§6.1) — N/A for this ticket (User has no `deletedAt`)
+- [x] Mutation is atomic with its audit entry (NFR-2), if it mutates — audit entry written for password change, same `prisma.$transaction` as the write
+- [x] Session asserted via `authedAction` (§8.2), if it is an action — changePasswordForcedAction uses authedAction
+- [x] No N+1 queries — verified by query count or `include`/`select` inspection — session callback does not query again for mustChangePassword (carried in the JWT from sign-in)
+- [x] No unused variables, imports, or dead code
+- [x] No secrets, amounts, passwords, or tokens in logs (NFR-8)
+- [x] Responsive at 360px, tap targets ≥44px (NFR-3)
+- [x] Keyboard accessible, labelled controls, 4.5:1 contrast (NFR-4)
+- [x] Reviewed by review-agent → passed to qa-agent → QA signed off
+
+## Review notes
+
+- **review-agent REJECT (round 1)**: `actions/auth/changePasswordForced.ts` called `prisma.$transaction` directly, violating CLAUDE.md's unqualified "no Prisma call outside `lib/repositories/`" rule. Everything else verified clean in the same pass: TDD cycle genuine (RED `e403895` → GREEN `50344ea`, T1-T5/T6 correctly identified as pre-existing carryover, not falsely claimed as new), full suite/e2e/typecheck/lint all independently re-run and clean, `passwordHash` never leaves the repository layer, mutation+audit atomicity verified end-to-end.
+- **Fix (round 1)**: added `lib/repositories/user.ts`'s `applyForcedPasswordChange()`, which owns the `prisma.$transaction` — re-reading the safety-check flag, writing the password, and recording the audit entry inside it. The action now only calls this one function and branches on `{ ok }`, never touching `prisma` or `Prisma.TransactionClient` itself (`f3fbfa7`). Full suite re-run clean: 79/79 unit+integration, 12/12 e2e for this ticket, tsc/lint clean.
+- **review-agent PASS (round 2)**: confirmed the fix is exactly what was asked and nothing more — no test files touched, TDD chain (RED → GREEN → structural fix) intact. `grep -rn "prisma\." actions/ app/ components/ middleware.ts` excluding `lib/repositories` returns nothing. Independently re-ran typecheck/lint/full suite (79/79)/e2e (12/12) all clean. Confirmed `findUserForForcedPasswordChange` still selects only `{ id, mustChangePassword }` and the audit snapshot carries only the boolean flag transition — data-protection invariant holds after the refactor.
+- **qa-agent PASS**: full suite re-run 79/79 (default TZ + TZ=UTC, identical), e2e 12/12 for this ticket. All 10 ACs and 8 edge cases verified live against a running container, including the precedence between AITJ-M1-01's session, AITJ-M1-03's route protection, and this ticket's `mustChangePassword` gate. Traced `applyForcedPasswordChange` end-to-end confirming `passwordHash` never appears in any return value or audit snapshot. Caught and diagnosed a stale-Docker-image process issue (a prior container was serving a corrupted middleware bundle, unrelated to this ticket's code) — resolved with a clean rebuild; flagged for the team that CI/deploy should force a clean image build before treating an environment as a QA target. Minor non-blocking note: edge case E2's ticket wording promises a "warning" on a re-seed collision that `seedAdmin()` doesn't actually log (it silently no-ops, which is the safer behavior) — worth a ticket-wording cleanup, not a code fix. Signed off deploy-ready.
