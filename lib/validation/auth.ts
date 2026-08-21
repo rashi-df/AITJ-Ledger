@@ -27,3 +27,12 @@ export const loginSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
 });
+
+// AITJ-M1-04 (FR-A5, AC10): the forced-password-change flow only ever
+// collects a new password -- the seeded admin's account has no legitimate
+// "current password" in the user's mind, so this schema deliberately has
+// no `currentPassword` field (unlike the ordinary change-password flow in
+// AITJ-M1-07, which requires it).
+export const forcedPasswordChangeSchema = z.object({
+  newPassword: passwordSchema,
+});

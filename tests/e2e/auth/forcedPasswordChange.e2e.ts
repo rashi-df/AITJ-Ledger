@@ -82,6 +82,13 @@ test.describe('forcedPasswordChange.e2e.ts', () => {
     const email = await createForcedChangeUser();
     try {
       await login(page, email);
+      // Wait for the post-login redirect itself to settle (T7) before
+      // triggering a second, unrelated navigation -- `login()`'s click
+      // only awaits the click event, not the ensuing server-action
+      // redirect, so a `page.goto()` fired immediately after it can race
+      // ahead of the browser actually receiving/storing the session
+      // cookie and land on /dashboard looking unauthenticated.
+      await expect(page).toHaveURL(/\/settings\/change-password$/);
 
       await page.goto('/dashboard');
 
@@ -97,6 +104,8 @@ test.describe('forcedPasswordChange.e2e.ts', () => {
     const email = await createForcedChangeUser();
     try {
       await login(page, email);
+      // See T8's comment above -- same settle-before-navigating fix.
+      await expect(page).toHaveURL(/\/settings\/change-password$/);
 
       await page.goto('/settings');
 

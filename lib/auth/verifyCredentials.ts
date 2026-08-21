@@ -6,6 +6,7 @@ export interface VerifiedUser {
   id: string;
   name: string;
   email: string;
+  mustChangePassword: boolean;
 }
 
 /**
@@ -24,5 +25,5 @@ export async function verifyCredentials(email: string, password: string): Promis
   if (!user || !isValid) {
     return null;
   }
-  return { id: user.id, name: user.name, email: user.email };
+  return { id: user.id, name: user.name, email: user.email, mustChangePassword: user.mustChangePassword };
 }
