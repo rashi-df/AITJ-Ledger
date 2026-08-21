@@ -103,4 +103,8 @@ The login page (`/login`) is the primary unauthenticated entry point. It accepts
 - [x] No secrets, amounts, passwords, or tokens in logs (NFR-8) — rate-limit logs omit email and password
 - [x] Responsive at 360px, tap targets ≥44px (NFR-3)
 - [x] Keyboard accessible, labelled controls, 4.5:1 contrast (NFR-4)
-- [ ] Reviewed by review-agent → passed to qa-agent → QA signed off
+- [x] Reviewed by review-agent → passed to qa-agent → QA signed off
+
+## Review notes
+
+- **review-agent PASS (round 1)**: full suite 65/65 (17 files) including all T4–T9/T12 against real Postgres, e2e 16/16 (desktop + mobile), `tsc --noEmit` and lint clean on the whole repo. Confirmed RED commit (`9063204`) shipped deliberately-broken stubs failing on real assertions, not import errors. Diffed RED→GREEN test files: only change was scoping `getByRole('alert')` to `page.locator('form').getByRole('alert')` in 4 e2e tests to avoid colliding with Next's `#__next-route-announcer__`, not a weakened assertion. Traced `passwordHash` end-to-end — selected only in `lib/repositories/user.ts`, never reaches `LoginActionResult`, a prop, or a log line. Verified `evaluateLoginAttempt` checks `isBlocked` before any `verifyCredentials` call, so a blocked 6th attempt skips bcrypt/DB work entirely (T6). Non-blocking notes: `loginAction` calls `evaluateLoginAttempt` then `signIn()`, which re-runs `authorize()`/`verifyCredentials` a second time on success — an avoidable ~100–200ms per successful login, not a correctness or security defect, worth collapsing in a future ticket; AC10 (1920px) has no Playwright project configured for that viewport, a known gap the ticket itself already flags rather than a silently dropped requirement.
