@@ -112,3 +112,8 @@ On first boot, if no user exists, an admin account is seeded from the `SEED_ADMI
 - [x] Responsive at 360px, tap targets ≥44px (NFR-3)
 - [x] Keyboard accessible, labelled controls, 4.5:1 contrast (NFR-4)
 - [ ] Reviewed by review-agent → passed to qa-agent → QA signed off
+
+## Review notes
+
+- **review-agent REJECT (round 1)**: `actions/auth/changePasswordForced.ts` called `prisma.$transaction` directly, violating CLAUDE.md's unqualified "no Prisma call outside `lib/repositories/`" rule. Everything else verified clean in the same pass: TDD cycle genuine (RED `e403895` → GREEN `50344ea`, T1-T5/T6 correctly identified as pre-existing carryover, not falsely claimed as new), full suite/e2e/typecheck/lint all independently re-run and clean, `passwordHash` never leaves the repository layer, mutation+audit atomicity verified end-to-end.
+- **Fix (round 1)**: added `lib/repositories/user.ts`'s `applyForcedPasswordChange()`, which owns the `prisma.$transaction` — re-reading the safety-check flag, writing the password, and recording the audit entry inside it. The action now only calls this one function and branches on `{ ok }`, never touching `prisma` or `Prisma.TransactionClient` itself (`f3fbfa7`). Full suite re-run clean: 79/79 unit+integration, 12/12 e2e for this ticket, tsc/lint clean.
