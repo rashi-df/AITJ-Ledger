@@ -19,7 +19,16 @@ const FALLBACK_ERROR = 'Invalid email or password';
  * ever shown, whether the email does not exist or the password is wrong
  * (AC2).
  */
-export function LoginForm() {
+export interface LoginFormProps {
+  /**
+   * The validated-on-the-server `?redirect=` destination (FR-A2), if the
+   * user was sent here from middleware.ts. Re-validated again by
+   * `loginAction` itself before use -- this prop is convenience only.
+   */
+  redirectTo?: string;
+}
+
+export function LoginForm({ redirectTo }: LoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +46,7 @@ export function LoginForm() {
 
     startTransition(() => {
       void (async () => {
-        const result = await loginAction(parsed.data);
+        const result = await loginAction({ ...parsed.data, redirectTo });
         if (result?.error) {
           setError(result.error);
         }
@@ -49,7 +58,12 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate aria-label="Login" className="w-full max-w-sm space-y-4">
+    <form
+      onSubmit={handleSubmit}
+      noValidate
+      aria-label="Login"
+      className="w-full max-w-sm space-y-4"
+    >
       <h1 className="text-xl font-semibold text-slate-900">Sign in</h1>
 
       <div className="space-y-1">

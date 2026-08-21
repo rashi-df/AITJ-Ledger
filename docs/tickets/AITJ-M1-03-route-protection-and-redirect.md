@@ -15,14 +15,14 @@ All routes except `/login` and `/invite/[token]` require an authenticated sessio
 
 ## Acceptance criteria
 
-- [ ] AC1 — GET /dashboard unauthenticated redirects to /login?redirect=%2Fdashboard
-- [ ] AC2 — GET /transactions unauthenticated redirects to /login with preserved destination
-- [ ] AC3 — GET /invite/[token] is accessible without authentication
-- [ ] AC4 — GET /login is accessible without authentication (no redirect loop)
-- [ ] AC5 — Redirect URL is validated as a relative in-app path; external URLs are rejected
-- [ ] AC6 — After successful login, the redirect param is read and the user is navigated to the saved destination
-- [ ] AC7 — If redirect param is missing or invalid, post-login redirect defaults to /dashboard
-- [ ] AC8 — Redirect is a server-side redirect (not client-side XSS), preserving browser history correctly
+- [x] AC1 — GET /dashboard unauthenticated redirects to /login?redirect=%2Fdashboard
+- [x] AC2 — GET /transactions unauthenticated redirects to /login with preserved destination
+- [x] AC3 — GET /invite/[token] is accessible without authentication
+- [x] AC4 — GET /login is accessible without authentication (no redirect loop)
+- [x] AC5 — Redirect URL is validated as a relative in-app path; external URLs are rejected
+- [x] AC6 — After successful login, the redirect param is read and the user is navigated to the saved destination
+- [x] AC7 — If redirect param is missing or invalid, post-login redirect defaults to /dashboard
+- [x] AC8 — Redirect is a server-side redirect (not client-side XSS), preserving browser history correctly
 
 ## Edge cases
 
@@ -62,9 +62,9 @@ All routes except `/login` and `/invite/[token]` require an authenticated sessio
 
 ### 🟢 GREEN — implementation is done when
 
-- [ ] Every RED test passes, unchanged. Tests are not edited to fit the implementation.
-- [ ] `pnpm tsc --noEmit`, `pnpm lint`, `pnpm test` all clean.
-- [ ] No test is skipped, `.only`, or commented out.
+- [x] Every RED test passes, unchanged. Tests are not edited to fit the implementation.
+- [x] `pnpm tsc --noEmit`, `pnpm lint`, `pnpm test` all clean.
+- [x] No test is skipped, `.only`, or commented out.
 
 ## Implementation notes
 
@@ -97,14 +97,14 @@ All routes except `/login` and `/invite/[token]` require an authenticated sessio
 
 ## Definition of done
 
-- [ ] All ACs met and all RED tests green
-- [ ] Server-side validation present (client validation alone is never sufficient — §7)
-- [ ] Every read filters `deletedAt: null` via the repository layer (§6.1) — N/A for this ticket
-- [ ] Mutation is atomic with its audit entry (NFR-2), if it mutates — N/A for this ticket
-- [ ] Session asserted via `authedAction` (§8.2), if it is an action — middleware checks session
-- [ ] No N+1 queries — verified by query count or `include`/`select` inspection — N/A for this ticket
-- [ ] No unused variables, imports, or dead code
-- [ ] No secrets, amounts, passwords, or tokens in logs (NFR-8)
-- [ ] Responsive at 360px, tap targets ≥44px (NFR-3) — N/A for this ticket
-- [ ] Keyboard accessible, labelled controls, 4.5:1 contrast (NFR-4) — N/A for this ticket
+- [x] All ACs met and all RED tests green
+- [x] Server-side validation present (client validation alone is never sufficient — §7)
+- [x] Every read filters `deletedAt: null` via the repository layer (§6.1) — N/A for this ticket
+- [x] Mutation is atomic with its audit entry (NFR-2), if it mutates — N/A for this ticket
+- [x] Session asserted via `authedAction` (§8.2), if it is an action — middleware checks session
+- [x] No N+1 queries — verified by query count or `include`/`select` inspection — N/A for this ticket
+- [x] No unused variables, imports, or dead code
+- [x] No secrets, amounts, passwords, or tokens in logs (NFR-8)
+- [x] Responsive at 360px, tap targets ≥44px (NFR-3) — N/A for this ticket
+- [x] Keyboard accessible, labelled controls, 4.5:1 contrast (NFR-4) — N/A for this ticket
 - [ ] Reviewed by review-agent → passed to qa-agent → QA signed off

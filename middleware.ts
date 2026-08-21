@@ -1,9 +1,34 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
+import { isValidRedirect } from './lib/auth/redirectValidation';
 
-// AITJ-M1-03 (FR-A2, NFR-7). Stub pending implementation.
-export async function middleware(_request: NextRequest): Promise<NextResponse> {
-  return NextResponse.next();
+/**
+ * Route protection (FR-A2, NFR-7). Guards the authenticated route group --
+ * dashboard, income, expenses, transactions, reports, categories,
+ * settings -- via the `matcher` below; `/login`, `/invite/[token]`,
+ * `/api/auth/*`, and the marketing root page are never matched, so they
+ * are always reachable unauthenticated (AC3, AC4).
+ *
+ * Reads the session via `next-auth/jwt`'s `getToken` rather than the full
+ * Auth.js API in lib/auth/config.ts: middleware runs on Next.js's Edge
+ * runtime, which cannot load the Credentials provider's transitive
+ * dependencies (bcryptjs, the Prisma client) -- `getToken` only decrypts
+ * the JWT cookie with the shared secret, no provider code involved.
+ */
+export async function middleware(request: NextRequest): Promise<NextResponse> {
+  const token = await getToken({ req: request, secret: process.env.AUTH_SECRET });
+  if (token) {
+    return NextResponse.next();
+  }
+
+  const { pathname, search } = request.nextUrl;
+  const destination = `${pathname}${search}`;
+  const loginUrl = new URL('/login', request.url);
+  if (isValidRedirect(destination)) {
+    loginUrl.searchParams.set('redirect', destination);
+  }
+  return NextResponse.redirect(loginUrl);
 }
 
 export const config = {
