@@ -1,0 +1,26 @@
+// Hand-rolled stand-in for the shadcn/ui Input primitive, matching
+// components/ui/button.tsx's convention (see that file's header comment
+// for why the shadcn CLI cannot be run in this environment).
+import * as React from 'react';
+
+import { cn } from '@/lib/utils';
+
+export type InputProps = React.InputHTMLAttributes<HTMLInputElement>;
+
+const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, type, ...props }, ref) => {
+  return (
+    <input
+      type={type}
+      className={cn(
+        // h-11 (44px): NFR-3's minimum tap target, not shadcn's default h-9.
+        'flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-slate-900 shadow-sm transition-colors placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+        className,
+      )}
+      ref={ref}
+      {...props}
+    />
+  );
+});
+Input.displayName = 'Input';
+
+export { Input };

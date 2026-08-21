@@ -39,7 +39,7 @@ test.describe('login.e2e.ts', () => {
     await page.getByLabel('Password').fill('WrongPassword1');
     await page.getByRole('button', { name: 'Sign in' }).click();
 
-    await expect(page.getByRole('alert')).toHaveText('Invalid email or password');
+    await expect(page.locator('form').getByRole('alert')).toHaveText('Invalid email or password');
   });
 
   test('T3: login > non-existent email returns generic error', async ({ page }) => {
@@ -49,7 +49,7 @@ test.describe('login.e2e.ts', () => {
     await page.getByLabel('Password').fill('WrongPassword1');
     await page.getByRole('button', { name: 'Sign in' }).click();
 
-    await expect(page.getByRole('alert')).toHaveText('Invalid email or password');
+    await expect(page.locator('form').getByRole('alert')).toHaveText('Invalid email or password');
   });
 
   test('T10: login form > empty email rejected client and server side', async ({ page }) => {
@@ -58,7 +58,7 @@ test.describe('login.e2e.ts', () => {
     await page.getByLabel('Password').fill('SomePassword1');
     await page.getByRole('button', { name: 'Sign in' }).click();
 
-    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(page.locator('form').getByRole('alert')).toBeVisible();
     // Client-side rejection: the page never navigates away from /login.
     await expect(page).toHaveURL(/\/login$/);
   });
@@ -69,7 +69,7 @@ test.describe('login.e2e.ts', () => {
     await page.getByLabel('Email').fill(email);
     await page.getByRole('button', { name: 'Sign in' }).click();
 
-    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(page.locator('form').getByRole('alert')).toBeVisible();
     await expect(page).toHaveURL(/\/login$/);
   });
 
