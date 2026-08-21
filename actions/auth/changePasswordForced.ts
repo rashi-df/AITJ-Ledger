@@ -5,27 +5,10 @@ import { redirect } from 'next/navigation';
 import { updateSession } from '../../lib/auth/config';
 import { authedAction, type ActionSession } from '../../lib/auth/authedAction';
 import { hashPassword } from '../../lib/auth/password';
-import { prisma } from '../../lib/db';
-import { recordAuditLog } from '../../lib/repositories/auditLog';
-import {
-  findUserForForcedPasswordChange,
-  setPasswordAndClearMustChangeFlag,
-} from '../../lib/repositories/user';
+import { applyForcedPasswordChange } from '../../lib/repositories/user';
 import { forcedPasswordChangeSchema } from '../../lib/validation/auth';
 
 const POST_CHANGE_DESTINATION = '/dashboard';
-
-// AC9 safety-check failure: thrown if this flow is invoked for an account
-// that is not (or no longer) in the forced-password-change state. Never
-// exposed to the client with any detail beyond a generic message. Not
-// exported: a "use server" file may only export async functions (and
-// types, which are erased) -- a class export is rejected at build time.
-class ForcedPasswordChangeNotRequiredError extends Error {
-  constructor() {
-    super('Password change is not required for this account.');
-    this.name = 'ForcedPasswordChangeNotRequiredError';
-  }
-}
 
 export interface ChangePasswordForcedResult {
   error?: string;
@@ -51,27 +34,10 @@ async function changePasswordForced(
 
   const passwordHash = await hashPassword(parsed.data.newPassword);
 
-  await prisma.$transaction(async (tx) => {
-    const user = await findUserForForcedPasswordChange(session.user.id, tx);
-    if (!user || !user.mustChangePassword) {
-      throw new ForcedPasswordChangeNotRequiredError();
-    }
-
-    await setPasswordAndClearMustChangeFlag(session.user.id, passwordHash, tx);
-
-    // Never includes passwordHash -- only the flag transition (FR-A10).
-    await recordAuditLog(
-      {
-        entityType: 'User',
-        entityId: session.user.id,
-        action: 'UPDATE',
-        actorId: session.user.id,
-        before: { mustChangePassword: true },
-        after: { mustChangePassword: false },
-      },
-      tx,
-    );
-  });
+  const result = await applyForcedPasswordChange(session.user.id, passwordHash);
+  if (!result.ok) {
+    return { error: 'Password change is not required for this account.' };
+  }
 
   await updateSession({ user: { mustChangePassword: false } });
 

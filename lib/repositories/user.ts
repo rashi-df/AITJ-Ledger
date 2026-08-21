@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../db';
+import { recordAuditLog } from './auditLog';
 
 export interface AuthUserRecord {
   id: string;
@@ -62,5 +63,41 @@ export async function setPasswordAndClearMustChangeFlag(
   await tx.user.update({
     where: { id: userId },
     data: { passwordHash, mustChangePassword: false },
+  });
+}
+
+/**
+ * Owns the forced-password-change transaction end to end (§8.2): re-reads
+ * `mustChangePassword` inside the transaction so the AC9 safety check can't
+ * race a concurrent change, writes the new hash, and records the audit
+ * entry -- all-or-nothing (NFR-2). The action layer never touches Prisma
+ * directly; it only calls this function and branches on the result.
+ */
+export async function applyForcedPasswordChange(
+  userId: string,
+  passwordHash: string,
+): Promise<{ ok: true } | { ok: false }> {
+  return prisma.$transaction(async (tx) => {
+    const user = await findUserForForcedPasswordChange(userId, tx);
+    if (!user || !user.mustChangePassword) {
+      return { ok: false as const };
+    }
+
+    await setPasswordAndClearMustChangeFlag(userId, passwordHash, tx);
+
+    // Never includes passwordHash -- only the flag transition (FR-A10).
+    await recordAuditLog(
+      {
+        entityType: 'User',
+        entityId: userId,
+        action: 'UPDATE',
+        actorId: userId,
+        before: { mustChangePassword: true },
+        after: { mustChangePassword: false },
+      },
+      tx,
+    );
+
+    return { ok: true as const };
   });
 }
