@@ -7,7 +7,7 @@
 | Blocks | AITJ-M1-02, AITJ-M1-03, AITJ-M1-04, AITJ-M1-05 |
 | PRD refs | FR-A3, FR-A4, FR-A10, §8.2 |
 | Est. | 1.5 days |
-| Phase | 🔴 RED |
+| Phase | 🟢 GREEN |
 
 ## Context
 
@@ -15,11 +15,11 @@ Auth.js v5 with a Credentials provider and JWT sessions is the authentication ba
 
 ## Acceptance criteria
 
-- [ ] AC1 — Auth.js v5 config initializes with Credentials provider, reading `AUTH_SECRET` and `AUTH_URL` from env
-- [ ] AC2 — Session cookie is httpOnly, secure, sameSite=lax, 7-day sliding window expiry
-- [ ] AC3 — Passwords are hashed with bcrypt cost 12; raw password never stored or returned
-- [ ] AC4 — `authedAction` wrapper asserts session before any Server Action executes
-- [ ] AC5 — (FR-A4) A user can log out from any page; the session is invalidated immediately and the cookie cleared
+- [x] AC1 — Auth.js v5 config initializes with Credentials provider, reading `AUTH_SECRET` and `AUTH_URL` from env
+- [x] AC2 — Session cookie is httpOnly, secure, sameSite=lax, 7-day sliding window expiry
+- [x] AC3 — Passwords are hashed with bcrypt cost 12; raw password never stored or returned
+- [x] AC4 — `authedAction` wrapper asserts session before any Server Action executes
+- [x] AC5 — (FR-A4) A user can log out from any page; the session is invalidated immediately and the cookie cleared
 
 ## Edge cases
 
@@ -54,9 +54,9 @@ Auth.js v5 with a Credentials provider and JWT sessions is the authentication ba
 
 ### 🟢 GREEN — implementation is done when
 
-- [ ] Every RED test passes, unchanged. Tests are not edited to fit the implementation.
-- [ ] `pnpm tsc --noEmit`, `pnpm lint`, `pnpm test` all clean.
-- [ ] No test is skipped, `.only`, or commented out.
+- [x] Every RED test passes, unchanged. Tests are not edited to fit the implementation.
+- [x] `pnpm tsc --noEmit`, `pnpm lint`, `pnpm test` all clean.
+- [x] No test is skipped, `.only`, or commented out.
 
 ## Implementation notes
 
@@ -82,14 +82,23 @@ Auth.js v5 with a Credentials provider and JWT sessions is the authentication ba
 
 ## Definition of done
 
-- [ ] All ACs met and all RED tests green
-- [ ] Server-side validation present (client validation alone is never sufficient — §7)
-- [ ] Every read filters `deletedAt: null` via the repository layer (§6.1) — N/A for this ticket
-- [ ] Mutation is atomic with its audit entry (NFR-2), if it mutates — N/A for this ticket
-- [ ] Session asserted via `authedAction` (§8.2), if it is an action — authedAction implemented
-- [ ] No N+1 queries — verified by query count or `include`/`select` inspection — N/A for this ticket
-- [ ] No unused variables, imports, or dead code
-- [ ] No secrets, amounts, passwords, or tokens in logs (NFR-8)
-- [ ] Responsive at 360px, tap targets ≥44px (NFR-3) — N/A for this ticket
-- [ ] Keyboard accessible, labelled controls, 4.5:1 contrast (NFR-4) — N/A for this ticket
-- [ ] Reviewed by review-agent → passed to qa-agent → QA signed off
+- [x] All ACs met and all RED tests green
+- [x] Server-side validation present (client validation alone is never sufficient — §7)
+- [x] Every read filters `deletedAt: null` via the repository layer (§6.1) — N/A for this ticket (User has no `deletedAt`)
+- [x] Mutation is atomic with its audit entry (NFR-2), if it mutates — N/A for this ticket
+- [x] Session asserted via `authedAction` (§8.2), if it is an action — authedAction implemented
+- [x] No N+1 queries — verified by query count or `include`/`select` inspection — N/A for this ticket
+- [x] No unused variables, imports, or dead code
+- [x] No secrets, amounts, passwords, or tokens in logs (NFR-8)
+- [x] Responsive at 360px, tap targets ≥44px (NFR-3) — N/A for this ticket
+- [x] Keyboard accessible, labelled controls, 4.5:1 contrast (NFR-4) — N/A for this ticket
+- [x] Reviewed by review-agent → passed to qa-agent → QA signed off
+
+## Review notes
+
+- **review-agent REJECT (round 1)**: `authorize()` returned `null` (no bcrypt call) when no user matched the email, but ran `verifyPassword` when a user was found — a timing side-channel revealing whether an email is registered, even with a generic error message. FR-A1 requires this to hold constant-time.
+- **Fix (round 1)**: `authorize()` now always calls `verifyPassword` — against the real hash when found, against a fixed `DUMMY_PASSWORD_HASH` (bcrypt cost 12) otherwise. Verified with 3 new tests asserting `verifyPassword` is called exactly once, on both paths.
+- **review-agent REJECT (round 2)**: `lib/auth/config.ts` ran `assertAuthEnv()` eagerly at module-load time (`NextAuth(buildAuthConfig())` at the top level), and `app/api/auth/[...nextauth]/route.ts` imports that module. Next.js's production build imports every route handler during "Collecting page data" — with no `AUTH_SECRET`/`AUTH_URL` present at Docker *build* time (only injected as compose *runtime* env) — so `docker compose build app` failed outright. Invisible to `tsc`/`lint`/`pnpm test` and to `make up` only because the running dev stack was reusing a stale pre-branch image.
+- **Fix (round 2)**: `NextAuth(buildAuthConfig())` construction is now lazy and cached (`getAuthApi()`), only running on first real request. Verified via `docker build --target builder --no-cache` succeeding with `AUTH_SECRET`/`AUTH_URL` deliberately absent.
+- **review-agent PASS (round 3)**: independently reproduced the clean `docker build --target builder` success (env stripped via `env -i`), full suite 53/53 inside the real container, tsc/lint clean, timing-fix and lazy-env-fix both hold. Flagged a real but non-blocking gap: the round-2 fix's own regression test (in `tests/docker/dockerfile.test.ts`) currently cannot execute through any documented command (`pnpm test`/`make test`/`make ci`) because `vitest.config.ts`'s project split (from AITJ-M0-06, already merged) excludes `tests/docker/` from every project's include globs, and nothing wires it into CI. This predates this ticket and is out of this ticket's scope to fix, but is worth a follow-up ticket/M0-06 amendment — recommended: give `tests/docker` its own vitest project or an explicit `make test-docker`/CI step.
+- **qa-agent PASS**: independently re-confirmed both of review-agent's specific asks — `make ci` genuinely runs inside the `app` container (not host), and `docker build --target builder --no-cache` succeeds with `AUTH_SECRET`/`AUTH_URL` fully stripped via `env -i`. All 5 ACs and 7 edge cases verified live (login/logout cookie attributes, tampered-cookie graceful degradation, password boundary cases, no secrets in container logs). Two non-blocking notes: E3's wording ("app startup fails") is slightly imprecise against the correct, reviewed implementation (lazy validation fails on the first auth-touching request, not at process boot) — a wording nit, not a defect; and `isProduction`'s cookie-`secure` flag is statically inlined by `next build`, so it doesn't vary by runtime `NODE_ENV` in the production image — fails safe (stays secure), flagged for awareness only. Signed off deploy-ready.
