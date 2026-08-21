@@ -7,7 +7,7 @@
 | Blocks | AITJ-M1-03, AITJ-M1-04 |
 | PRD refs | FR-A1, FR-A11, §10 |
 | Est. | 1.5 days |
-| Phase | 🔴 RED |
+| Phase | 🟢 GREEN |
 
 ## Context
 
@@ -108,3 +108,4 @@ The login page (`/login`) is the primary unauthenticated entry point. It accepts
 ## Review notes
 
 - **review-agent PASS (round 1)**: full suite 65/65 (17 files) including all T4–T9/T12 against real Postgres, e2e 16/16 (desktop + mobile), `tsc --noEmit` and lint clean on the whole repo. Confirmed RED commit (`9063204`) shipped deliberately-broken stubs failing on real assertions, not import errors. Diffed RED→GREEN test files: only change was scoping `getByRole('alert')` to `page.locator('form').getByRole('alert')` in 4 e2e tests to avoid colliding with Next's `#__next-route-announcer__`, not a weakened assertion. Traced `passwordHash` end-to-end — selected only in `lib/repositories/user.ts`, never reaches `LoginActionResult`, a prop, or a log line. Verified `evaluateLoginAttempt` checks `isBlocked` before any `verifyCredentials` call, so a blocked 6th attempt skips bcrypt/DB work entirely (T6). Non-blocking notes: `loginAction` calls `evaluateLoginAttempt` then `signIn()`, which re-runs `authorize()`/`verifyCredentials` a second time on success — an avoidable ~100–200ms per successful login, not a correctness or security defect, worth collapsing in a future ticket; AC10 (1920px) has no Playwright project configured for that viewport, a known gap the ticket itself already flags rather than a silently dropped requirement.
+- **qa-agent PASS**: full suite re-run 65/65 twice, plus once under `TZ=UTC` — identical. e2e 16/16 re-run twice — identical. `tsc --noEmit`/lint clean. All 10 ACs and 9 edge cases verified live against the running app, including tracing the timing-safe bcrypt path and the rate-limit counter mechanism, and confirming `passwordHash` never leaves the repository layer. Non-blocking notes: a wrong password under 10 characters surfaces the Zod length message instead of the generic "Invalid email or password" — a narrow, untested boundary, not an email-enumeration channel (fires regardless of whether the email exists) and not a broken/weakened test, since no test in the plan exercises it; worth a one-line ticket amendment if byte-for-byte AC2 literalism is ever wanted. AC10 (1920px) remains unverified at that exact breakpoint — inferred low-risk from the single centered `max-w-sm` card layout, but not directly checked. Signed off deploy-ready.
